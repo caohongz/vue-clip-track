@@ -3,7 +3,7 @@
 一个基于 Vue 3 的专业级视频轨道编辑组件库。
 
 [![npm version](https://img.shields.io/npm/v/vue-clip-track.svg)](https://www.npmjs.com/package/vue-clip-track)
-[![license](https://img.shields.io/npm/l/vue-clip-track.svg)](https://github.com/caohongz/vue-clip-track/blob/main/LICENSE)
+[![license](https://img.shields.io/npm/l/vue-clip-track.svg)](https://github.com/caohongz/vue-clip-track?tab=MIT-1-ov-file)
 
 ## 📺 在线演示
 
