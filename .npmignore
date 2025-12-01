@@ -4,6 +4,7 @@ src/
 # Config files
 tsconfig.json
 vite.config.ts
+vitest.config.ts
 .eslintrc.*
 .prettierrc.*
 
@@ -16,7 +17,33 @@ node_modules/
 __tests__/
 *.spec.ts
 *.test.ts
+coverage/
+
+# Storybook files
+*.stories.ts
+*.stories.tsx
+*.stories.js
+*.stories.mdx
+.storybook/
+storybook-static/
+
+# Docs
+docs/
+
+# Git
+.git/
+.gitignore
 
 # Build artifacts
 *.log
 *.tsbuildinfo
+
+# Misc
+.DS_Store
+*.local
+
+# Exclude test-related d.ts from dist
+dist/__tests__/
+dist/**/*.spec.d.ts
+dist/**/*.test.d.ts
+dist/**/*.stories.d.ts

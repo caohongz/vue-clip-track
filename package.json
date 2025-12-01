@@ -1,7 +1,7 @@
 {
     "name": "vue-clip-track",
-    "version": "0.0.1",
-    "description": "Vue 3 音视频轨道编辑组件",
+    "version": "0.1.0",
+    "description": "A professional Vue 3 video track editing component library / 基于 Vue 3 的专业级视频轨道编辑组件库",
     "type": "module",
     "keywords": [
         "vue",
@@ -13,9 +13,14 @@
         "video-editing",
         "audio",
         "clip",
-        "component"
+        "component",
+        "video-editor",
+        "audio-editor",
+        "timeline-editor",
+        "nle",
+        "non-linear-editing"
     ],
-    "author": "",
+    "author": "caohongz",
     "license": "MIT",
     "homepage": "https://github.com/caohongz/vue-clip-track",
     "repository": {
@@ -59,6 +64,9 @@
         "docs:dev": "vitepress dev docs",
         "docs:build": "vitepress build docs",
         "docs:preview": "vitepress preview docs"
+    },
+    "engines": {
+        "node": ">=18.0.0"
     },
     "peerDependencies": {
         "pinia": "^2.1.0",

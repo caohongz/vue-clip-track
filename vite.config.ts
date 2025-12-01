@@ -9,6 +9,7 @@ export default defineConfig({
         dts({
             insertTypesEntry: true,
             include: ['src/**/*.ts', 'src/**/*.vue'],
+            exclude: ['src/__tests__/**', 'src/**/*.spec.ts', 'src/**/*.test.ts', 'src/**/*.stories.ts'],
             outDir: 'dist',
             // 生成单独的类型声明文件
             staticImport: true,
