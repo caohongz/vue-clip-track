@@ -58,8 +58,15 @@ jobs:
       - name: Merge outputs
         run: |
           mkdir -p dist-pages/docs
+          echo "=== Storybook output ==="
+          ls -la storybook-static/
+          echo "=== VitePress output ==="
+          ls -la docs/.vitepress/dist/
           cp -r storybook-static/* dist-pages/
           cp -r docs/.vitepress/dist/* dist-pages/docs/
+          echo "=== Final dist-pages structure ==="
+          ls -la dist-pages/
+          ls -la dist-pages/docs/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
