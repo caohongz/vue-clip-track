@@ -7,6 +7,10 @@
 
 ## 📺 在线演示
 
+[**查看 DEMO 在线演示 →**](https://caohongz.github.io/vue-clip-component/)
+
+[**查看 DOCS 在线文档和演示 →**](https://caohongz.github.io/vue-clip-track/docs/)
+
 [**查看 Storybook 在线文档和演示 →**](https://caohongz.github.io/vue-clip-track/)
 
 ## ✨ 特性
