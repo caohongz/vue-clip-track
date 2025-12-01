@@ -1,0 +1,142 @@
+import { Meta } from '@storybook/blocks'
+
+<Meta title="Introduction" />
+
+# vue-clip-track
+
+一个基于 Vue 3 的专业级视频轨道编辑组件库。
+
+## ✨ 特性
+
+- 🎬 **多轨道编辑** - 支持视频、音频、字幕、文本、贴纸、滤镜、特效等多种轨道类型
+- 🎯 **精准时间控制** - 支持帧级别的时间精度控制
+- 🔄 **拖放操作** - 直观的拖放式编辑体验，支持跨轨道拖拽
+- ⏱️ **时间轴缩放** - 灵活的时间轴缩放和定位
+- 🔗 **转场效果** - 在相邻 Clip 之间添加转场
+- 📸 **媒体预览** - 视频缩略图和音频波形可视化
+- 🎨 **高度可定制** - 支持自定义主题、国际化配置
+- 📦 **TypeScript** - 完整的 TypeScript 类型支持
+- ⌨️ **键盘快捷键** - 内置常用快捷键支持
+- ↩️ **撤销/重做** - 完整的操作历史管理
+
+## 📦 安装
+
+```bash
+# npm
+npm install vue-clip-track
+
+# pnpm
+pnpm add vue-clip-track
+
+# yarn
+yarn add vue-clip-track
+```
+
+## 🚀 快速开始
+
+### 1. 引入组件和样式
+
+```typescript
+// main.ts
+import { createApp } from 'vue'
+import { createPinia } from 'pinia'
+import App from './App.vue'
+
+// 引入组件样式
+import 'vue-clip-track/style.css'
+
+const app = createApp(App)
+app.use(createPinia())
+app.mount('#app')
+```
+
+### 2. 使用组件
+
+```vue
+<template>
+  <VideoTrack
+    ref="videoTrackRef"
+    :operation-buttons="['reset', 'undo', 'redo', 'split', 'delete']"
+    :track-types="trackTypes"
+    :enable-cross-track-drag="true"
+    :enable-snap="true"
+    :locale="'zh-CN'"
+  />
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+import { VideoTrack } from 'vue-clip-track'
+
+const videoTrackRef = ref()
+
+const trackTypes = ref({
+  video: { max: 5 },
+  audio: { max: 3 },
+  subtitle: { max: 2 },
+})
+</script>
+```
+
+## ⌨️ 键盘快捷键
+
+<table>
+  <thead>
+    <tr>
+      <th>快捷键</th>
+      <th>Mac</th>
+      <th>功能</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Ctrl+C</code></td>
+      <td><code>Cmd+C</code></td>
+      <td>复制选中的 Clip</td>
+    </tr>
+    <tr>
+      <td><code>Ctrl+X</code></td>
+      <td><code>Cmd+X</code></td>
+      <td>剪切选中的 Clip</td>
+    </tr>
+    <tr>
+      <td><code>Ctrl+V</code></td>
+      <td><code>Cmd+V</code></td>
+      <td>粘贴 Clip</td>
+    </tr>
+    <tr>
+      <td><code>Delete</code> / <code>Backspace</code></td>
+      <td><code>Delete</code> / <code>Backspace</code></td>
+      <td>删除选中的 Clip</td>
+    </tr>
+    <tr>
+      <td><code>Ctrl+Z</code></td>
+      <td><code>Cmd+Z</code></td>
+      <td>撤销</td>
+    </tr>
+    <tr>
+      <td><code>Ctrl+Shift+Z</code> / <code>Ctrl+Y</code></td>
+      <td><code>Cmd+Shift+Z</code></td>
+      <td>重做</td>
+    </tr>
+    <tr>
+      <td><code>Space</code></td>
+      <td><code>Space</code></td>
+      <td>播放/暂停</td>
+    </tr>
+    <tr>
+      <td><code>Ctrl+A</code></td>
+      <td><code>Cmd+A</code></td>
+      <td>全选</td>
+    </tr>
+    <tr>
+      <td><code>Escape</code></td>
+      <td><code>Escape</code></td>
+      <td>取消选择</td>
+    </tr>
+  </tbody>
+</table>
+
+## 📖 更多文档
+
+请查看左侧导航栏中的 **Components > VideoTrack** 来查看组件的详细用法和交互演示。

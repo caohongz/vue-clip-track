@@ -1,0 +1,22 @@
+# Source files
+src/
+
+# Config files
+tsconfig.json
+vite.config.ts
+.eslintrc.*
+.prettierrc.*
+
+# Development files
+node_modules/
+.vscode/
+.idea/
+
+# Test files
+__tests__/
+*.spec.ts
+*.test.ts
+
+# Build artifacts
+*.log
+*.tsbuildinfo

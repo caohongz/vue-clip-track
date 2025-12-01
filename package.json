@@ -1,0 +1,88 @@
+{
+    "name": "vue-clip-track",
+    "version": "0.0.1",
+    "description": "Vue 3 音视频轨道编辑组件",
+    "type": "module",
+    "keywords": [
+        "vue",
+        "vue3",
+        "video",
+        "timeline",
+        "track",
+        "editor",
+        "video-editing",
+        "audio",
+        "clip",
+        "component"
+    ],
+    "author": "",
+    "license": "MIT",
+    "homepage": "https://github.com/caohongz/vue-clip-track",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/caohongz/vue-clip-track.git"
+    },
+    "bugs": {
+        "url": "https://github.com/caohongz/vue-clip-track/issues"
+    },
+    "main": "./dist/vue-clip-track.umd.cjs",
+    "module": "./dist/vue-clip-track.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": "./dist/vue-clip-track.js",
+            "require": "./dist/vue-clip-track.umd.cjs",
+            "types": "./dist/index.d.ts"
+        },
+        "./style.css": "./dist/style.css"
+    },
+    "files": [
+        "dist",
+        "README.md",
+        "CHANGELOG.md"
+    ],
+    "sideEffects": [
+        "*.css"
+    ],
+    "scripts": {
+        "dev": "vite",
+        "build": "vue-tsc --noEmit && vite build",
+        "build:types": "vue-tsc --declaration --emitDeclarationOnly --outDir dist",
+        "preview": "vite preview",
+        "lint": "eslint . --ext .vue,.js,.ts,.jsx,.tsx",
+        "test": "vitest",
+        "test:run": "vitest run",
+        "test:coverage": "vitest run --coverage",
+        "prepublishOnly": "npm run build",
+        "storybook": "storybook dev -p 6006",
+        "build-storybook": "storybook build",
+        "docs:dev": "vitepress dev docs",
+        "docs:build": "vitepress build docs",
+        "docs:preview": "vitepress preview docs"
+    },
+    "peerDependencies": {
+        "pinia": "^2.1.0",
+        "vue": "^3.3.0"
+    },
+    "devDependencies": {
+        "@storybook/addon-essentials": "^8.6.0",
+        "@storybook/addon-interactions": "^8.6.0",
+        "@storybook/blocks": "^8.6.0",
+        "@storybook/vue3": "^8.6.0",
+        "@storybook/vue3-vite": "^8.6.0",
+        "@vitejs/plugin-vue": "^5.0.4",
+        "@vitest/coverage-v8": "^2.1.0",
+        "@vue/test-utils": "^2.4.6",
+        "@webav/av-cliper": "^1.2.7",
+        "jsdom": "^25.0.0",
+        "pinia": "^2.1.7",
+        "storybook": "^8.6.0",
+        "typescript": "^5.4.2",
+        "vite": "^5.1.6",
+        "vite-plugin-dts": "^3.7.3",
+        "vitepress": "^1.6.4",
+        "vitest": "^2.1.0",
+        "vue": "^3.4.21",
+        "vue-tsc": "^2.0.6"
+    }
+}
