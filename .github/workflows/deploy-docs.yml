@@ -1,4 +1,4 @@
-name: Deploy Docs
+name: Deploy to GitHub Pages
 
 on:
   push:
@@ -33,20 +33,33 @@ jobs:
         with:
           version: 8
 
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
       - name: Install dependencies
         run: pnpm install
-
-      - name: Build docs
-        run: pnpm docs:build
 
       - name: Build Storybook
         run: pnpm build-storybook
 
+      - name: Build docs
+        run: pnpm docs:build
+
       - name: Merge outputs
         run: |
-          mkdir -p dist-pages
-          cp -r docs/.vitepress/dist/* dist-pages/docs/
+          mkdir -p dist-pages/docs
           cp -r storybook-static/* dist-pages/
+          cp -r docs/.vitepress/dist/* dist-pages/docs/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
