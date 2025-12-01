@@ -27,7 +27,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, inject } from 'vue'
+import { computed, ref, inject, watch } from 'vue'
 import { useTracksStore } from '@/stores/tracks'
 import { useScaleStore } from '@/stores/scale'
 import { useDragStore } from '@/stores/drag'
@@ -86,6 +86,13 @@ const isSelected = computed(() => tracksStore.selectedClipIds.has(props.clip.id)
 // 检查当前 clip 是否正在被拖拽
 const isBeingDragged = computed(() => dragStore.draggedClipIds.has(props.clip.id))
 
+// 监听拖拽状态，拖拽结束时清理初始位置
+watch(() => dragStore.isDragging, (isDragging) => {
+  if (!isDragging) {
+    dragStartRect.value = null
+  }
+})
+
 const actualPixelsPerSecond = computed(() => scaleStore.actualPixelsPerSecond)
 
 // 获取当前 clip 的配置
@@ -101,6 +108,9 @@ const clipClasses = computed(() => ({
   'clip--resizing': isResizing.value,
   'clip--show-transition-btn': showTransitionBtn.value
 }))
+
+// 记录拖拽开始时的初始位置
+const dragStartRect = ref<DOMRect | null>(null)
 
 const clipStyle = computed(() => {
   const duration = props.clip.endTime - props.clip.startTime
@@ -145,12 +155,20 @@ const clipStyle = computed(() => {
     '--clip-selected-box-shadow': config.selected?.boxShadow
   }
 
-  // 如果正在被拖拽，使用 transform 跟随鼠标（保持原有定位方式，避免 iframe 环境问题）
-  if (isBeingDragged.value && dragStore.isDragging) {
+  // 如果正在被拖拽，使用 fixed 定位跟随鼠标
+  if (isBeingDragged.value && dragStore.isDragging && dragStartRect.value) {
     const offset = dragStore.dragOffset
-    style.transform = `translate(${offset.x}px, ${offset.y}px)`
-    style.zIndex = 100 // 拖拽时的层级不能高于 track-control
+    const rect = dragStartRect.value
+    // 使用初始屏幕位置 + 偏移量计算 fixed 定位的坐标
+    style.position = 'fixed'
+    style.left = `${rect.left + offset.x}px`
+    style.top = `${rect.top + offset.y}px`
+    style.width = `${rect.width}px`
+    style.height = `${rect.height}px`
+    style.zIndex = 1000 // 拖拽时的层级需要足够高以覆盖其他轨道
     style.pointerEvents = 'none'
+    // 不需要 transform，因为位置已经通过 left/top 计算
+    style.transform = 'none'
   }
 
   return style
@@ -253,6 +271,10 @@ function handleMouseDown(event: MouseEvent) {
     if (deltaX > DRAG_THRESHOLD || deltaY > DRAG_THRESHOLD) {
       dragPending = false
       if (dragStartEvent) {
+        // 记录拖拽开始时 clip 的屏幕位置
+        if (clipRef.value) {
+          dragStartRect.value = clipRef.value.getBoundingClientRect()
+        }
         emit('dragStart', props.clip, dragStartEvent)
       }
       cleanup()
