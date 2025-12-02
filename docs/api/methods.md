@@ -54,6 +54,34 @@ videoTrackRef.value.moveClip(clipId, targetTrackId, newStartTime)
 videoTrackRef.value.getClipById(clipId)
 ```
 
+### updateClip 深度合并
+
+`updateClip` 方法支持深度合并嵌套对象，无需手动展开原有属性：
+
+```typescript
+// ✅ 只更新 rect.angle，保留其他属性（x, y, w, h）
+videoTrackRef.value.updateClip(clipId, {
+  rect: { angle: Math.PI / 4 }
+})
+
+// ✅ 只更新 time.playbackRate，保留 offset 和 duration
+videoTrackRef.value.updateClip(clipId, {
+  time: { playbackRate: 2 }
+})
+
+// ✅ 同时更新多个嵌套属性
+videoTrackRef.value.updateClip(clipId, {
+  rect: { x: 100, y: 100 },
+  opacity: 0.8,
+  visible: true
+})
+
+// ⚠️ 数组会被完全替换（不会合并）
+videoTrackRef.value.updateClip(clipId, {
+  animations: [newAnimation] // 替换整个 animations 数组
+})
+```
+
 ## 选择操作
 
 ```typescript

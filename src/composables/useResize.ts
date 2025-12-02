@@ -311,21 +311,16 @@ export function useResize() {
     const maxStartTime = resizeStartEndTime.value - minDuration;
     newStartTime = Math.max(0, Math.min(newStartTime, maxStartTime));
 
-    // 检查是否有左侧相邻的 clip（非转场连接的情况），防止重叠
-    const trackForOverlapCheck = tracksStore.tracks.find(
-      (t) => t.id === resizingClip.value!.trackId
-    );
-    if (trackForOverlapCheck) {
-      // 查找是否有左侧转场
-      const hasLeftTransition = trackForOverlapCheck.clips.some((c) => {
-        if (c.type !== 'transition') return false;
-        const transClip = c as TransitionClip;
-        const centerTime = (transClip.startTime + transClip.endTime) / 2;
-        return Math.abs(centerTime - resizeStartTime.value) < 0.01;
-      });
+    // 使用预先收集的关联元素来判断是否有左侧转场（而不是实时检查 store 中的位置）
+    const hasLeftTransition = linkedElementsLeft.value.length > 0 &&
+      linkedElementsLeft.value[0].type === 'transition';
 
-      // 如果没有转场连接，检查左侧是否有其他 clip，限制不能重叠
-      if (!hasLeftTransition) {
+    // 如果没有转场连接，检查左侧是否有其他 clip，限制不能重叠
+    if (!hasLeftTransition) {
+      const trackForOverlapCheck = tracksStore.tracks.find(
+        (t) => t.id === resizingClip.value!.trackId
+      );
+      if (trackForOverlapCheck) {
         const prevClipForOverlap = trackForOverlapCheck.clips
           .filter((c) => c.type !== 'transition' && c.id !== resizingClip.value!.id)
           .find((c) => c.endTime <= resizeStartTime.value + 0.01 && c.endTime > newStartTime);
@@ -465,21 +460,16 @@ export function useResize() {
     const minEndTime = resizeStartTime.value + minDuration;
     newEndTime = Math.max(minEndTime, newEndTime);
 
-    // 检查是否有右侧相邻的 clip（非转场连接的情况），防止重叠
-    const trackForOverlapCheck = tracksStore.tracks.find(
-      (t) => t.id === resizingClip.value!.trackId
-    );
-    if (trackForOverlapCheck) {
-      // 查找是否有右侧转场
-      const hasRightTransition = trackForOverlapCheck.clips.some((c) => {
-        if (c.type !== 'transition') return false;
-        const transClip = c as TransitionClip;
-        const centerTime = (transClip.startTime + transClip.endTime) / 2;
-        return Math.abs(centerTime - resizeStartEndTime.value) < 0.01;
-      });
+    // 使用预先收集的关联元素来判断是否有右侧转场（而不是实时检查 store 中的位置）
+    const hasRightTransition = linkedElementsRight.value.length > 0 &&
+      linkedElementsRight.value[0].type === 'transition';
 
-      // 如果没有转场连接，检查右侧是否有其他 clip，限制不能重叠
-      if (!hasRightTransition) {
+    // 如果没有转场连接，检查右侧是否有其他 clip，限制不能重叠
+    if (!hasRightTransition) {
+      const trackForOverlapCheck = tracksStore.tracks.find(
+        (t) => t.id === resizingClip.value!.trackId
+      );
+      if (trackForOverlapCheck) {
         const nextClipForOverlap = trackForOverlapCheck.clips
           .filter((c) => c.type !== 'transition' && c.id !== resizingClip.value!.id)
           .find((c) => c.startTime >= resizeStartEndTime.value - 0.01 && c.startTime < newEndTime);
@@ -640,12 +630,20 @@ export function useResize() {
     const track = tracksStore.tracks.find(t => t.id === resizingClip.value!.trackId);
     if (!track) return time;
 
+    // 收集所有关联元素的 ID（这些元素会随着当前 clip 移动，不应作为吸附目标）
+    const linkedIds = new Set<string>();
+    linkedElementsRight.value.forEach(e => linkedIds.add(e.id));
+    linkedElementsLeft.value.forEach(e => linkedIds.add(e.id));
+
     const snapPositions: number[] = [];
 
-    // 添加同轨道其他非转场、非选中 clip 的边缘（支持毫秒级精度）
+    // 添加同轨道其他非转场、非选中、非关联 clip 的边缘（支持毫秒级精度）
     const selectedIds = new Set(tracksStore.selectedClipIds);
     track.clips.forEach((c) => {
-      if (c.id !== resizingClip.value!.id && !selectedIds.has(c.id) && c.type !== 'transition') {
+      if (c.id !== resizingClip.value!.id &&
+        !selectedIds.has(c.id) &&
+        !linkedIds.has(c.id) &&
+        c.type !== 'transition') {
         snapPositions.push(c.startTime);
         snapPositions.push(c.endTime);
       }

@@ -13,6 +13,19 @@ export { default as VideoTrack } from './components/index.vue'
 
 // 导出所有类型
 export type {
+    // Clip 空间配置
+    RectProps,
+    RectConfig,
+    FlipType,
+    // Clip 动画配置
+    AnimatableProps,
+    AnimationKeyframes,
+    AnimationOptions,
+    AnimationConfig,
+    PresetAnimationType,
+    PresetAnimation,
+    // Clip 交互配置
+    InteractableMode,
     // Clip 类型
     BaseClip,
     MediaClip,
@@ -24,8 +37,12 @@ export type {
     TransitionClip,
     Clip,
     ClipType,
-    Animation,
+    ClipCreateOptions,
+    ClipUpdateOptions,
 } from './types/clip'
+
+// 导出工具常量和函数
+export { DEFAULT_RECT, TIME_UNITS, timeUtils } from './types/clip'
 
 export type {
     // Track 类型

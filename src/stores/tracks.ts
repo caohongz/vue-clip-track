@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Track, Clip, ClipType, TrackType, MediaClip } from '@/types'
+import type { Track, Clip, ClipType, TrackType, MediaClip, TransitionClip } from '@/types'
 
 export const useTracksStore = defineStore('tracks', () => {
   // 状态
@@ -166,7 +166,38 @@ export const useTracksStore = defineStore('tracks', () => {
     tracks.value.forEach((track) => {
       const index = track.clips.findIndex((c) => c.id === clipId)
       if (index !== -1) {
-        track.clips.splice(index, 1)
+        const clip = track.clips[index]
+
+        // 如果是视频类型的 clip，检查并删除关联的转场
+        if (clip.type === 'video') {
+          // 查找与该 clip 相关联的转场（转场的中心时间在 clip 边界附近）
+          const relatedTransitions = track.clips.filter((c) => {
+            if (c.type !== 'transition') return false
+            const trans = c as TransitionClip
+            const centerTime = (trans.startTime + trans.endTime) / 2
+            // 检查转场是否与当前 clip 的开始或结束位置相关联
+            const isAtStart = Math.abs(centerTime - clip.startTime) < trans.transitionDuration
+            const isAtEnd = Math.abs(centerTime - clip.endTime) < trans.transitionDuration
+            return isAtStart || isAtEnd
+          })
+
+          // 删除关联的转场
+          relatedTransitions.forEach((trans) => {
+            const transIndex = track.clips.findIndex((c) => c.id === trans.id)
+            if (transIndex !== -1) {
+              track.clips.splice(transIndex, 1)
+              selectedClipIds.value.delete(trans.id)
+            }
+          })
+
+          // 重新查找当前 clip 的索引（因为可能因为删除转场而改变）
+          const newIndex = track.clips.findIndex((c) => c.id === clipId)
+          if (newIndex !== -1) {
+            track.clips.splice(newIndex, 1)
+          }
+        } else {
+          track.clips.splice(index, 1)
+        }
       }
     })
     selectedClipIds.value.delete(clipId)
@@ -177,12 +208,50 @@ export const useTracksStore = defineStore('tracks', () => {
     clipIds.forEach((id) => removeClip(id))
   }
 
-  // 方法：更新 Clip
+  /**
+   * 深度合并对象
+   * 用于更新嵌套属性时保留未指定的字段
+   */
+  function deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
+    const result = { ...target }
+
+    for (const key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) {
+        const sourceValue = source[key]
+        const targetValue = target[key]
+
+        // 如果源值是 null 或 undefined，直接赋值
+        if (sourceValue === null || sourceValue === undefined) {
+          result[key] = sourceValue as T[Extract<keyof T, string>]
+        }
+        // 如果两个值都是普通对象（非数组），递归合并
+        else if (
+          typeof sourceValue === 'object' &&
+          !Array.isArray(sourceValue) &&
+          typeof targetValue === 'object' &&
+          targetValue !== null &&
+          !Array.isArray(targetValue)
+        ) {
+          result[key] = deepMerge(targetValue, sourceValue)
+        }
+        // 否则直接覆盖（包括数组）
+        else {
+          result[key] = sourceValue as T[Extract<keyof T, string>]
+        }
+      }
+    }
+
+    return result
+  }
+
+  // 方法：更新 Clip（支持深度合并嵌套对象）
   function updateClip(clipId: string, updates: Partial<Clip>) {
     tracks.value.forEach((track) => {
-      const clip = track.clips.find((c) => c.id === clipId)
-      if (clip) {
-        Object.assign(clip, updates)
+      const clipIndex = track.clips.findIndex((c) => c.id === clipId)
+      if (clipIndex !== -1) {
+        const clip = track.clips[clipIndex]
+        // 使用深度合并，保留嵌套对象中未指定的属性
+        track.clips[clipIndex] = deepMerge(clip, updates) as Clip
       }
     })
   }

@@ -841,3 +841,185 @@ export const ScaleConfig: Story = {
         },
     },
 }
+
+// 新属性示例 - 展示 rect, time, opacity, visible, flip, animations 等属性
+export const NewClipProperties: Story = {
+    name: '新 Clip 属性',
+    render: (args) => ({
+        components: { VideoTrack },
+        setup() {
+            const pinia = createPinia()
+            setActivePinia(pinia)
+
+            const videoTrackRef = ref()
+
+            // 创建带有新属性的视频 Clip
+            function createEnhancedVideoTrack(): Track {
+                const clips: MediaClip[] = [
+                    {
+                        id: generateId('clip-'),
+                        trackId: '',
+                        type: 'video',
+                        startTime: 0,
+                        endTime: 5,
+                        selected: false,
+                        sourceUrl: '',
+                        originalDuration: 23,
+                        trimStart: 0,
+                        trimEnd: 5,
+                        playbackRate: 1,
+                        thumbnails: [],
+                        // 空间配置
+                        rect: {
+                            x: 0,
+                            y: 0,
+                            w: 1920,
+                            h: 1080,
+                            angle: 0,
+                            fixedAspectRatio: true,
+                        },
+                        // 可见性和透明度
+                        visible: true,
+                        opacity: 1,
+                        // 翻转
+                        flip: null,
+                        // 交互模式
+                        interactable: 'interactive',
+                        zIndex: 1,
+                    },
+                    {
+                        id: generateId('clip-'),
+                        trackId: '',
+                        type: 'video',
+                        startTime: 6,
+                        endTime: 12,
+                        selected: false,
+                        sourceUrl: '',
+                        originalDuration: 20,
+                        trimStart: 2,
+                        trimEnd: 8,
+                        playbackRate: 1,
+                        thumbnails: [],
+                        // 新属性示例：带翻转和半透明
+                        rect: {
+                            x: 100,
+                            y: 100,
+                            w: 800,
+                            h: 600,
+                            angle: Math.PI / 6, // 30度
+                        },
+                        visible: true,
+                        opacity: 0.8,
+                        flip: 'horizontal',
+                        // 新属性：带动画
+                        animations: [
+                            {
+                                id: 'fadeIn',
+                                name: '淡入效果',
+                                keyframes: {
+                                    'from': { opacity: 0 },
+                                    'to': { opacity: 0.8 },
+                                },
+                                options: {
+                                    duration: 500_000, // 0.5秒
+                                    easing: 'ease-out',
+                                    fillMode: 'forwards',
+                                },
+                                enabled: true,
+                            },
+                        ],
+                    },
+                ]
+
+                const track: Track = {
+                    id: generateId('track-'),
+                    type: 'video',
+                    name: '视频轨道（新属性示例）',
+                    visible: true,
+                    locked: false,
+                    clips: [],
+                    order: 1,
+                }
+
+                clips.forEach((clip) => {
+                    clip.trackId = track.id
+                })
+                track.clips = clips
+
+                return track
+            }
+
+            onMounted(() => {
+                if (videoTrackRef.value) {
+                    videoTrackRef.value.addTrack(createEnhancedVideoTrack())
+                }
+            })
+
+            // 演示如何更新 clip 属性（深度合并，无需展开原有属性）
+            const updateClipDemo = () => {
+                if (videoTrackRef.value) {
+                    const clips = videoTrackRef.value.getTracks()[0]?.clips
+                    if (clips && clips.length > 0) {
+                        // 使用 updateClip 方法更新属性
+                        // 深度合并：只需指定要更新的字段，其他字段会自动保留
+                        videoTrackRef.value.updateClip(clips[0].id, {
+                            rect: {
+                                angle: (clips[0].rect?.angle ?? 0) + Math.PI / 12, // 只更新 angle，保留 x, y, w, h
+                            },
+                            opacity: Math.max(0.3, (clips[0].opacity ?? 1) - 0.1),
+                        })
+                    }
+                }
+            }
+
+            return { args, videoTrackRef, updateClipDemo }
+        },
+        template: `
+      <div style="display: flex; flex-direction: column; height: 450px; background: #1a1a2e;">
+        <div style="padding: 8px; background: #0d1117; border-bottom: 1px solid #30363d;">
+          <button 
+            @click="updateClipDemo" 
+            style="padding: 6px 12px; background: #238636; color: white; border: none; border-radius: 4px; cursor: pointer;"
+          >
+            更新第一个 Clip（旋转+降低透明度）
+          </button>
+        </div>
+        <div style="flex: 1; min-height: 0;">
+          <VideoTrack
+            ref="videoTrackRef"
+            v-bind="args"
+            style="height: 100%;"
+          />
+        </div>
+      </div>
+    `,
+    }),
+    args: {
+        operationButtons: ['reset', 'undo', 'redo', 'split', 'delete'],
+        scaleConfigButtons: ['snap'],
+        showToolsBar: true,
+        enableCrossTrackDrag: true,
+        enableSnap: true,
+        locale: 'zh-CN',
+    },
+    parameters: {
+        docs: {
+            description: {
+                story: `
+展示新增的 Clip 属性配置，包括：
+
+- **rect**: 空间属性（x, y, w, h, angle）
+- **visible**: 可见性控制
+- **opacity**: 透明度 (0-1)
+- **flip**: 翻转模式 ('horizontal' | 'vertical' | null)
+- **interactable**: 交互模式 ('interactive' | 'selectable' | 'disabled')
+- **zIndex**: 层级
+- **animations**: 关键帧动画配置
+- **playbackRate**: 播放速率（仅 MediaClip 音视频有）
+
+点击按钮可以演示如何使用 \`updateClip\` 方法更新这些属性。
+                `,
+            },
+        },
+    },
+}
