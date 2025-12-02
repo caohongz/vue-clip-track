@@ -7,11 +7,17 @@
 
 ## 📺 在线演示
 
-[**查看 DEMO 在线演示 →**](https://caohongz.github.io/video-track-component/){target="_blank"} 
-
-[**查看 DOCS 在线文档和演示 →**](https://caohongz.github.io/vue-clip-track/docs/){target="_blank"}
-
-[**查看 Storybook 在线文档和演示 →**](https://caohongz.github.io/vue-clip-track/){target="_blank"}
+<a href="https://caohongz.github.io/video-track-component/" target="_blank" rel="noopener">
+  **查看 DEMO 在线演示 →**
+</a>
+<p></p>
+<a href="https://caohongz.github.io/vue-clip-track/docs/" target="_blank" rel="noopener">
+  **查看 DOCS 在线文档和演示 →**
+</a>
+<p></p>
+<a href="https://caohongz.github.io/vue-clip-track/" target="_blank" rel="noopener">
+  **查看 Storybook 在线文档和演示 →**
+</a>
 
 ## ✨ 特性
 
