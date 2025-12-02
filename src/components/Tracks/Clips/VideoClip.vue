@@ -7,16 +7,18 @@
         <span class="video-clip__loading-text">加载中...</span>
       </div>
       <!-- 缩略图展示 -->
-      <template v-else>
-        <div v-for="(thumbnail, index) in displayThumbnails" :key="index" class="video-clip__thumbnail" :style="{
-          backgroundImage: thumbnail ? `url(${thumbnail})` : 'none',
-          width: thumbnailWidth + 'px'
+      <div v-else class="video-clip__thumbnail-track" :style="{ width: clipWidth + 'px' }">
+        <div v-for="(item, index) in displayThumbnails" :key="index" class="video-clip__thumbnail" :style="{
+          backgroundImage: item.url ? `url(${item.url})` : 'none',
+          width: item.width + 'px',
+          backgroundPosition: 'center',
+          backgroundSize: 'cover'
         }">
-          <div v-if="!thumbnail" class="video-clip__thumbnail-placeholder">
+          <div v-if="!item.url" class="video-clip__thumbnail-placeholder">
             📹
           </div>
         </div>
-      </template>
+      </div>
     </div>
     <div class="video-clip__info">
       <span class="video-clip__name">{{ clipName }}</span>
@@ -48,6 +50,11 @@ const thumbnailsRef = ref<HTMLElement>()
 const isLoading = ref(false)
 const loadedThumbnails = ref<string[]>([])
 
+// 缩略图宽度限制（根据缩放比例动态调整）
+const MIN_THUMBNAIL_WIDTH = 40  // 最小宽度
+const MAX_THUMBNAIL_WIDTH = 120 // 最大宽度
+const BASE_THUMBNAIL_WIDTH = 80 // 基准宽度
+
 // Computed
 const mediaClip = computed(() => props.clip as MediaClip)
 
@@ -64,19 +71,13 @@ const clipWidth = computed(() => {
   return duration * scaleStore.actualPixelsPerSecond
 })
 
-// 计算每个缩略图的宽度
-const thumbnailWidth = computed(() => {
-  const count = displayThumbnails.value.length
-  if (count === 0) return 0
-  return clipWidth.value / count
-})
-
-// 计算需要显示的缩略图数量
-const thumbnailCount = computed(() => {
-  // 每个缩略图大约 60-100px 宽度
-  const idealWidth = 80
-  const count = Math.max(1, Math.ceil(clipWidth.value / idealWidth))
-  return Math.min(count, 20) // 最多 20 个缩略图
+// 根据缩放比例计算单个缩略图的理想宽度
+const thumbnailIdealWidth = computed(() => {
+  // 根据缩放比例调整缩略图宽度
+  const scaleFactor = Math.sqrt(scaleStore.scale) // 使用平方根让变化更平滑
+  const width = BASE_THUMBNAIL_WIDTH * scaleFactor
+  // 限制在最小和最大值之间
+  return Math.max(MIN_THUMBNAIL_WIDTH, Math.min(MAX_THUMBNAIL_WIDTH, width))
 })
 
 // 获取完整的原始缩略图数据
@@ -89,49 +90,64 @@ const fullThumbnails = computed(() => {
   return loadedThumbnails.value
 })
 
-// 根据 trimStart 和 trimEnd 获取应该展示的缩略图
-const trimmedThumbnails = computed(() => {
-  const fullData = fullThumbnails.value
-  if (!fullData || fullData.length === 0) return []
-
-  const originalDuration = mediaClip.value.originalDuration
-  if (originalDuration <= 0) return fullData
-
-  const trimStart = mediaClip.value.trimStart || 0
-  const trimEnd = mediaClip.value.trimEnd || originalDuration
-
-  // 计算缩略图的起始和结束索引
-  const totalThumbnails = fullData.length
-  const startIndex = Math.floor((trimStart / originalDuration) * totalThumbnails)
-  const endIndex = Math.ceil((trimEnd / originalDuration) * totalThumbnails)
-
-  // 返回截取后的数据
-  return fullData.slice(startIndex, endIndex)
-})
-
-// 显示的缩略图
+// 计算显示的缩略图列表
+// 每个缩略图代表原始视频中的一个时间点
 const displayThumbnails = computed(() => {
-  const trimmed = trimmedThumbnails.value
-  if (trimmed.length > 0) {
-    return selectThumbnails(trimmed, thumbnailCount.value)
-  }
-  // 返回占位符
-  return new Array(thumbnailCount.value).fill('')
-})
+  const fullData = fullThumbnails.value
+  const originalDuration = mediaClip.value.originalDuration
+  const trimStart = mediaClip.value.trimStart ?? 0
+  const trimEnd = mediaClip.value.trimEnd ?? originalDuration
+  const trimDuration = trimEnd - trimStart
 
-// 从缩略图数组中均匀选择指定数量的缩略图
-function selectThumbnails(thumbnails: string[], count: number): string[] {
-  if (thumbnails.length <= count) {
-    return [...thumbnails]
+  // 如果没有缩略图数据或原始时长无效，返回占位符
+  if (!fullData || fullData.length === 0 || originalDuration <= 0 || trimDuration <= 0) {
+    const count = Math.max(1, Math.ceil(clipWidth.value / thumbnailIdealWidth.value))
+    return Array.from({ length: count }, () => ({
+      url: '',
+      width: clipWidth.value / count
+    }))
   }
-  const result: string[] = []
-  const step = thumbnails.length / count
-  for (let i = 0; i < count; i++) {
-    const index = Math.floor(i * step)
-    result.push(thumbnails[index])
+
+  // 每个原始缩略图代表的时间跨度
+  const timePerThumbnail = originalDuration / fullData.length
+
+  const result: { url: string; width: number }[] = []
+  let currentPixel = 0
+  const totalWidth = clipWidth.value
+
+  // 从 trimStart 开始，按照理想宽度步进
+  while (currentPixel < totalWidth) {
+    // 计算当前像素对应的时间（相对于 clip 开始位置）
+    const clipRelativeTime = (currentPixel / totalWidth) * trimDuration
+    // 对应到原始视频的时间
+    const originalTime = trimStart + clipRelativeTime
+
+    // 计算对应的缩略图索引
+    const thumbnailIndex = Math.floor(originalTime / timePerThumbnail)
+    // 确保索引在有效范围内
+    const safeIndex = Math.max(0, Math.min(thumbnailIndex, fullData.length - 1))
+
+    // 计算这个缩略图应该占用的宽度
+    let width = thumbnailIdealWidth.value
+
+    // 如果剩余空间不足一个完整的缩略图宽度，使用剩余宽度
+    if (currentPixel + width > totalWidth) {
+      width = totalWidth - currentPixel
+    }
+
+    // 只有宽度大于0才添加
+    if (width > 0) {
+      result.push({
+        url: fullData[safeIndex],
+        width
+      })
+    }
+
+    currentPixel += width
   }
+
   return result
-}
+})
 
 // 加载缩略图
 async function loadThumbnails() {
@@ -196,6 +212,11 @@ onUnmounted(() => {
   display: flex;
   overflow: hidden;
   position: relative;
+}
+
+.video-clip__thumbnail-track {
+  display: flex;
+  height: 100%;
 }
 
 .video-clip__loading {

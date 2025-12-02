@@ -71,13 +71,26 @@ const waveformData = computed(() => {
   const originalDuration = mediaClip.value.originalDuration
   if (originalDuration <= 0) return fullData
 
-  const trimStart = mediaClip.value.trimStart || 0
-  const trimEnd = mediaClip.value.trimEnd || originalDuration
+  const trimStart = mediaClip.value.trimStart ?? 0
+  const trimEnd = mediaClip.value.trimEnd ?? originalDuration
+
+  // 如果没有裁剪，返回完整数据
+  if (trimStart === 0 && trimEnd === originalDuration) {
+    return fullData
+  }
 
   // 计算波形数据的起始和结束索引
   const totalSamples = fullData.length
-  const startIndex = Math.floor((trimStart / originalDuration) * totalSamples)
-  const endIndex = Math.ceil((trimEnd / originalDuration) * totalSamples)
+  const startRatio = trimStart / originalDuration
+  const endRatio = trimEnd / originalDuration
+
+  // 使用更精确的索引计算，确保至少有一个采样点
+  let startIndex = Math.floor(startRatio * totalSamples)
+  let endIndex = Math.ceil(endRatio * totalSamples)
+
+  // 边界检查
+  startIndex = Math.max(0, Math.min(startIndex, totalSamples - 1))
+  endIndex = Math.max(startIndex + 1, Math.min(endIndex, totalSamples))
 
   // 返回截取后的数据
   return fullData.slice(startIndex, endIndex)
