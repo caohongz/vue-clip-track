@@ -1,6 +1,6 @@
 {
     "name": "vue-clip-track",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "description": "A professional Vue 3 video track editing component library / 基于 Vue 3 的专业级视频轨道编辑组件库",
     "type": "module",
     "keywords": [
