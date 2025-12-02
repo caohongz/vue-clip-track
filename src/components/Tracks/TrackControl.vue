@@ -107,9 +107,14 @@ function handleDelete() {
   align-items: center;
   gap: 12px;
   padding: 0 12px;
+  padding-right: 14px;
+  /* 12px + 2px 额外间距，让游标线可见 */
+  margin-right: 2px;
+  /* 右侧留出 2px 透明区域 */
   border-right: 1px solid var(--color-border);
   height: 100%;
   box-sizing: border-box;
+  background-color: var(--color-bg-elevated);
 }
 
 .track-control__name {

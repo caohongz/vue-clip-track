@@ -1,8 +1,5 @@
 <template>
   <div class="tracks" ref="tracksRef">
-    <!-- 游标线（穿过控制区域） -->
-    <div v-if="cursorInControlArea" class="tracks__cursor-line" :style="{ left: cursorDisplayPosition + 'px' }" />
-
     <!-- 空状态提示 -->
     <div v-if="sortedTracks.length === 0" class="tracks__empty">
       <div class="tracks__empty-content">
@@ -113,20 +110,7 @@ const contentWidth = computed(() => {
 // 控制栏宽度
 const trackControlWidth = ref(200)
 
-// 游标在内容中的位置
-const cursorPosition = computed(() => {
-  return playbackStore.currentTime * actualPixelsPerSecond.value
-})
 
-// 游标显示位置（考虑滚动和控制栏偏移）
-const cursorDisplayPosition = computed(() => {
-  return trackControlWidth.value + cursorPosition.value - scrollLeft.value
-})
-
-// 游标是否在控制区域内（需要显示额外的游标线）
-const cursorInControlArea = computed(() => {
-  return cursorDisplayPosition.value > 0 && cursorDisplayPosition.value <= trackControlWidth.value
-})
 
 // Watchers
 watch(() => props.scrollLeft, (newVal) => {
@@ -332,18 +316,6 @@ provide('config', config)
   position: relative;
 }
 
-/* 游标线（穿过控制区域） */
-.tracks__cursor-line {
-  position: absolute;
-  top: 0;
-  width: 2px;
-  height: 100%;
-  background: var(--color-primary);
-  transform: translateX(-50%);
-  pointer-events: none;
-  z-index: 300;
-}
-
 .tracks__scroll-container {
   flex: 1;
   overflow-y: auto;
@@ -391,7 +363,7 @@ provide('config', config)
   vertical-align: top;
   border-bottom: 1px solid var(--color-border);
   height: 100%;
-  background-color: var(--color-bg-elevated);
+  background-color: transparent;
   /* 确保 track-control 在拖拽 clip 之上 */
   position: relative;
   z-index: 200;
