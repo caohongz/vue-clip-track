@@ -3,14 +3,15 @@
 一个基于 Vue 3 的专业级视频轨道编辑组件库。
 
 [![npm version](https://img.shields.io/npm/v/vue-clip-track.svg)](https://www.npmjs.com/package/vue-clip-track)
+[![npm downloads](https://img.shields.io/npm/dm/vue-clip-track.svg)](https://www.npmjs.com/package/vue-clip-track)
 
 ## 📺 在线演示
 
-[**查看 DEMO 在线演示 →**](https://caohongz.github.io/video-track-component/)
+[**查看 DEMO 在线演示 →**](https://caohongz.github.io/video-track-component/){target="_blank"} 
 
-[**查看 DOCS 在线文档和演示 →**](https://caohongz.github.io/vue-clip-track/docs/)
+[**查看 DOCS 在线文档和演示 →**](https://caohongz.github.io/vue-clip-track/docs/){target="_blank"}
 
-[**查看 Storybook 在线文档和演示 →**](https://caohongz.github.io/vue-clip-track/)
+[**查看 Storybook 在线文档和演示 →**](https://caohongz.github.io/vue-clip-track/){target="_blank"}
 
 ## ✨ 特性
 
