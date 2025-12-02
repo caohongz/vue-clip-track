@@ -53,19 +53,39 @@ export function useKeyboard(options: UseKeyboardOptions = {}) {
     return isActive.value
   }
 
+  // 检查事件目标是否是输入元素
+  function isInputElement(target: EventTarget | null): boolean {
+    if (!target || !(target instanceof HTMLElement)) return false
+
+    // 检查是否是输入元素
+    if (
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement ||
+      target.isContentEditable
+    ) {
+      return true
+    }
+
+    // 检查是否有 contenteditable 属性
+    if (target.getAttribute('contenteditable') === 'true') {
+      return true
+    }
+
+    return false
+  }
+
   // 处理键盘事件
   function handleKeyDown(event: KeyboardEvent) {
-    // 首先检查是否应该处理快捷键
-    if (!shouldHandleShortcut()) return
-
-    // 检查是否在输入框中
-    if (isInputFocused(event)) return
-
     const isMacOS = isMac()
     const modKey = isMacOS ? event.metaKey : event.ctrlKey
 
-    // 空格：播放/暂停
+    // 空格：播放/暂停 - 全局生效，但在输入框内禁用
     if (event.code === 'Space') {
+      // 如果在输入框内，不处理空格键
+      if (isInputElement(event.target)) {
+        return
+      }
       event.preventDefault()
       if (playbackStore.isPlaying) {
         playbackStore.pause()
@@ -76,6 +96,12 @@ export function useKeyboard(options: UseKeyboardOptions = {}) {
       }
       return
     }
+
+    // 其他快捷键需要检查是否应该处理
+    if (!shouldHandleShortcut()) return
+
+    // 检查是否在输入框中
+    if (isInputFocused(event)) return
 
     // Ctrl/Cmd + Z：撤销
     if (modKey && event.code === 'KeyZ' && !event.shiftKey) {
