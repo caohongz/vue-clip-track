@@ -52,6 +52,7 @@ const props = withDefaults(defineProps<Props>(), {
 // Emits
 const emit = defineEmits<{
   scroll: [left: number]
+  seek: [time: number]
 }>()
 
 // Stores
@@ -151,9 +152,11 @@ function handleRulerClick(event: MouseEvent) {
   // 减去左侧占位宽度
   const x = event.clientX - rect.left - props.trackControlWidth + (props.scrollLeft || 0)
   const time = x / actualPixelsPerSecond.value
+  const seekTime = Math.max(0, time)
 
   // 直接跳转到点击位置，不进行吸附
-  playbackStore.seekTo(Math.max(0, time))
+  playbackStore.seekTo(seekTime)
+  emit('seek', seekTime)
 }
 
 // 开始拖拽游标
@@ -232,6 +235,9 @@ function handleCursorDragStart() {
     }
     document.removeEventListener('mousemove', handleMouseMove)
     document.removeEventListener('mouseup', handleMouseUp)
+
+    // 拖拽结束时触发 seek 事件
+    emit('seek', playbackStore.currentTime)
   }
 
   // 初始化鼠标位置

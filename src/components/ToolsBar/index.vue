@@ -137,6 +137,8 @@ const props = withDefaults(defineProps<Props>(), {
 // Emits
 const emit = defineEmits<{
   operation: [operation: string]
+  'playback:play': []
+  'playback:pause': []
 }>()
 
 // Stores
@@ -263,7 +265,13 @@ function handleOperation(operation: string) {
 
 // 切换播放/暂停
 function togglePlay() {
-  playbackStore.togglePlay()
+  if (playbackStore.isPlaying) {
+    playbackStore.pause()
+    emit('playback:pause')
+  } else {
+    playbackStore.play()
+    emit('playback:play')
+  }
 }
 
 // 处理播放速率变化

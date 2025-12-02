@@ -10,6 +10,8 @@ interface KeyboardCallbacks {
   onCut?: (clipIds: string[]) => void
   onDelete?: (clipIds: string[]) => void
   onPaste?: (clips: any[], trackId: string, time: number) => void
+  onPlay?: () => void
+  onPause?: () => void
 }
 
 interface UseKeyboardOptions {
@@ -65,7 +67,13 @@ export function useKeyboard(options: UseKeyboardOptions = {}) {
     // 空格：播放/暂停
     if (event.code === 'Space') {
       event.preventDefault()
-      playbackStore.togglePlay()
+      if (playbackStore.isPlaying) {
+        playbackStore.pause()
+        callbacks.onPause?.()
+      } else {
+        playbackStore.play()
+        callbacks.onPlay?.()
+      }
       return
     }
 

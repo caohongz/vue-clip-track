@@ -29,7 +29,7 @@
           <div class="tracks__track-area-cell">
             <TrackArea :track="track" :scroll-left="scrollLeft" @scroll="handleAreaScroll"
               @context-menu="handleContextMenu" @track-context-menu="handleTrackContextMenu"
-              @add-transition="handleAddTransition" @drop-media="handleDropMedia" />
+              @add-transition="handleAddTransition" @drop-media="handleDropMedia" @seek="handleSeek" />
           </div>
         </div>
       </div>
@@ -74,6 +74,7 @@ const emit = defineEmits<{
   addTransition: [beforeClipId: string, afterClipId: string]
   dropMedia: [mediaData: any, trackId: string, startTime: number]
   'update:trackControlWidth': [width: number]
+  seek: [time: number]
 }>()
 
 // Stores
@@ -306,6 +307,11 @@ function handleAddTransition(beforeClipId: string, afterClipId: string) {
 // 处理拖放媒体
 function handleDropMedia(mediaData: any, trackId: string, startTime: number) {
   emit('dropMedia', mediaData, trackId, startTime)
+}
+
+// 处理 seek 事件
+function handleSeek(time: number) {
+  emit('seek', time)
 }
 
 // 提供配置给子组件

@@ -5,7 +5,8 @@
 
     <!-- 工具栏 -->
     <ToolsBar v-if="showToolsBar" :operation-buttons="operationButtons" :scale-config-buttons="scaleConfigButtons"
-      :locale="mergedLocale" @operation="handleOperation">
+      :locale="mergedLocale" @operation="handleOperation" @playback:play="() => emit('playback:play')"
+      @playback:pause="() => emit('playback:pause')">
       <!-- 操作区域插槽 -->
       <template #operations-prepend>
         <slot name="operations-prepend" />
@@ -44,7 +45,7 @@
 
     <!-- 时间线 -->
     <Ruler :width="tracksWidth" :scroll-left="scrollLeft" :track-control-width="currentTrackControlWidth"
-      @scroll="handleRulerScroll" />
+      @scroll="handleRulerScroll" @seek="handleSeekFromChild" />
 
     <!-- 时间线后置插槽 -->
     <slot name="ruler-after" />
@@ -58,7 +59,7 @@
       <Tracks :scroll-left="scrollLeft" :locale="mergedLocale" @scroll="handleTracksScroll"
         @context-menu="handleClipContextMenu" @track-context-menu="handleTrackContextMenu"
         @add-transition="handleAddTransition" @drop-media="handleDropMedia"
-        @update:track-control-width="handleTrackControlWidthUpdate">
+        @update:track-control-width="handleTrackControlWidthUpdate" @seek="handleSeekFromChild">
         <!-- 轨道控制区自定义 -->
         <template #track-control="slotProps">
           <slot name="track-control" v-bind="slotProps" />
@@ -478,6 +479,12 @@ const keyboardCallbacks = {
   },
   onPaste: (clips: any[], trackId: string, time: number) => {
     emit('clipPaste', clips, trackId, time)
+  },
+  onPlay: () => {
+    emit('playback:play')
+  },
+  onPause: () => {
+    emit('playback:pause')
   }
 }
 
@@ -725,6 +732,11 @@ function handleAddTransition(beforeClipId: string, afterClipId: string) {
 // 处理拖放媒体
 function handleDropMedia(mediaData: any, trackId: string, startTime: number) {
   emit('dropMedia', mediaData, trackId, startTime)
+}
+
+// 处理子组件的 seek 事件（来自 Ruler 或 Tracks）
+function handleSeekFromChild(time: number) {
+  emit('playback:seek', time)
 }
 
 // 通用菜单项定义（使用 locale）

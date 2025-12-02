@@ -43,6 +43,7 @@ const emit = defineEmits<{
   trackContextMenu: [track: Track, time: number, event: MouseEvent]
   addTransition: [beforeClipId: string, afterClipId: string]
   dropMedia: [mediaData: any, trackId: string, startTime: number]
+  seek: [time: number]
 }>()
 
 // Stores
@@ -143,6 +144,7 @@ function handleMouseDown(event: MouseEvent) {
     const x = event.clientX - rect.left + trackAreaRef.value.scrollLeft
     const time = normalizeTime(x / actualPixelsPerSecond.value)
     playbackStore.seekTo(time)
+    emit('seek', time)
   }
 }
 
@@ -155,6 +157,7 @@ function handleClipClick(clip: Clip, _event: MouseEvent) {
 // 处理 Clip 双击（改变播放时间）
 function handleClipDblClick(clip: Clip, time: number) {
   playbackStore.seekTo(time)
+  emit('seek', time)
 }
 
 // 处理 Clip 右键菜单
