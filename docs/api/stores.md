@@ -29,7 +29,25 @@ tracksStore.removeTrack(trackId)
 tracksStore.addClip(trackId, clip)
 tracksStore.removeClip(clipId)
 tracksStore.updateClip(clipId, changes)
+
+// 设置轨道数据（自动规范化 clips 时长）
+tracksStore.setTracks(tracks)
+
+// 规范化方法（用于处理带 playbackRate 的 clips）
+tracksStore.normalizeTracks(tracks)       // 规范化轨道数组
+tracksStore.normalizeClipDuration(clip)   // 规范化单个 clip
+
+// 倍速控制
+tracksStore.setClipPlaybackRate(clipId, rate, options)
+tracksStore.getClipDurationAtRate(clipId, rate)
+tracksStore.checkPlaybackRateCollision(clipId, rate)
+tracksStore.calculateTrackDuration(trimStart, trimEnd, playbackRate)
 ```
+
+::: tip 自动时长修正
+`addTrack`、`addClip`、`setTracks` 方法会自动根据 `playbackRate` 修正媒体 clip 的 `endTime`。
+详见 [播放倍速指南](/guide/playback-rate)。
+:::
 
 ## usePlaybackStore
 

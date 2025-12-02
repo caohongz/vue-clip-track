@@ -260,6 +260,14 @@ interface MediaClip extends BaseClip {
 }
 ```
 
+::: tip 关于 playbackRate 和时长计算
+媒体 clip 在轨道上的显示时长 = `(trimEnd - trimStart) / playbackRate`
+
+通过 `addTrack`、`addClip`、`importData` 等方法添加数据时，组件会自动根据 `playbackRate` 修正 `endTime`。
+
+详见 [播放倍速指南](/guide/playback-rate)。
+:::
+
 ### SubtitleClip
 
 字幕 Clip。

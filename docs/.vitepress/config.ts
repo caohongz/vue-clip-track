@@ -39,6 +39,7 @@ export default defineConfig({
                     text: '核心概念',
                     items: [
                         { text: '轨道与片段', link: '/guide/tracks-and-clips' },
+                        { text: '播放倍速', link: '/guide/playback-rate' },
                         { text: '键盘快捷键', link: '/guide/keyboard-shortcuts' },
                         { text: '主题定制', link: '/guide/theming' },
                         { text: '国际化', link: '/guide/i18n' },

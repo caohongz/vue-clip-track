@@ -989,8 +989,8 @@ function importData(data: {
     console.warn(`[VideoTrack] 数据版本不匹配: ${data.version} -> ${DATA_VERSION}`)
   }
 
-  // 导入轨道数据
-  tracksStore.tracks = data.tracks || []
+  // 导入轨道数据（使用 setTracks 自动规范化 clips 的时长）
+  tracksStore.setTracks(data.tracks || [])
 
   // 导入播放状态
   if (data.currentTime !== undefined) {
@@ -1140,6 +1140,38 @@ function moveClip(clipId: string, targetTrackId: string, startTime: number) {
   emit('clip:drag-end', clip, fromTrackId, targetTrackId)
 
   return true
+}
+
+// 设置 Clip 播放倍速
+function setClipPlaybackRate(
+  clipId: string,
+  newPlaybackRate: number,
+  options?: {
+    allowShrink?: boolean
+    allowExpand?: boolean
+    handleCollision?: boolean
+    keepStartTime?: boolean
+  }
+) {
+  const result = tracksStore.setClipPlaybackRate(clipId, newPlaybackRate, options)
+  if (result.success) {
+    historyStore.pushSnapshot('调整倍速')
+    const clip = tracksStore.getClip(clipId)
+    if (clip) {
+      emit('clip:updated', clipId, { playbackRate: newPlaybackRate }, {})
+    }
+  }
+  return result
+}
+
+// 获取 Clip 在指定倍速下的预计时长
+function getClipDurationAtRate(clipId: string, playbackRate: number) {
+  return tracksStore.getClipDurationAtRate(clipId, playbackRate)
+}
+
+// 检查调整倍速后是否会产生碰撞
+function checkPlaybackRateCollision(clipId: string, newPlaybackRate: number, keepStartTime = true) {
+  return tracksStore.checkPlaybackRateCollision(clipId, newPlaybackRate, keepStartTime)
 }
 
 // ============ 选择操作 API ============
@@ -1318,6 +1350,9 @@ defineExpose({
   updateClip,
   getClipById,
   moveClip,
+  setClipPlaybackRate,
+  getClipDurationAtRate,
+  checkPlaybackRateCollision,
 
   // 选择操作
   selectClip,

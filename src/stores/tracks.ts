@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Track, Clip, ClipType, TrackType, MediaClip, TransitionClip } from '@/types'
+import { normalizeTime } from '@/utils/helpers'
 
 export const useTracksStore = defineStore('tracks', () => {
   // 状态
@@ -75,8 +76,55 @@ export const useTracksStore = defineStore('tracks', () => {
     return clips
   })
 
+  /**
+   * 规范化媒体 Clip 的时长（根据 playbackRate 修正 endTime）
+   * @param clip - 要规范化的 clip
+   * @returns 规范化后的 clip
+   */
+  function normalizeClipDuration(clip: Clip): Clip {
+    if ((clip.type === 'video' || clip.type === 'audio') && 'playbackRate' in clip) {
+      const mediaClip = clip as MediaClip
+      const playbackRate = mediaClip.playbackRate || 1
+
+      // 如果有裁剪信息，使用裁剪后的时长
+      if (typeof mediaClip.trimStart === 'number' && typeof mediaClip.trimEnd === 'number') {
+        const trimmedDuration = mediaClip.trimEnd - mediaClip.trimStart
+        const correctTrackDuration = normalizeTime(trimmedDuration / playbackRate)
+        return {
+          ...mediaClip,
+          endTime: normalizeTime(mediaClip.startTime + correctTrackDuration)
+        }
+      }
+    }
+    return clip
+  }
+
+  /**
+   * 规范化轨道数据（处理所有 clips 的时长）
+   * @param tracksData - 轨道数据数组
+   * @returns 规范化后的轨道数据
+   */
+  function normalizeTracks(tracksData: Track[]): Track[] {
+    return tracksData.map((track) => ({
+      ...track,
+      clips: track.clips ? track.clips.map(normalizeClipDuration) : []
+    }))
+  }
+
+  /**
+   * 设置轨道数据（会自动规范化 clips 的时长）
+   * @param tracksData - 轨道数据数组
+   */
+  function setTracks(tracksData: Track[]) {
+    tracks.value = normalizeTracks(tracksData)
+  }
+
   // 方法：添加轨道
   function addTrack(track: Track) {
+    // 处理轨道中的媒体 clips，自动根据 playbackRate 修正 endTime
+    if (track.clips && track.clips.length > 0) {
+      track.clips = track.clips.map(normalizeClipDuration)
+    }
     tracks.value.push(track)
   }
 
@@ -157,7 +205,9 @@ export const useTracksStore = defineStore('tracks', () => {
   function addClip(trackId: string, clip: Clip) {
     const track = tracks.value.find((t) => t.id === trackId)
     if (track) {
-      track.clips.push(clip)
+      // 自动根据 playbackRate 修正 endTime
+      const normalizedClip = normalizeClipDuration(clip)
+      track.clips.push(normalizedClip)
     }
   }
 
@@ -595,6 +645,346 @@ export const useTracksStore = defineStore('tracks', () => {
     return { leftClip, rightClip }
   }
 
+  /**
+   * 设置媒体 Clip 的播放倍速
+   * 调整倍速会改变 clip 在轨道上的时长
+   * 
+   * @param clipId - Clip ID
+   * @param newPlaybackRate - 新的播放倍速（0.25 ~ 4）
+   * @param options - 配置选项
+   * @returns 是否成功设置
+   */
+  function setClipPlaybackRate(
+    clipId: string,
+    newPlaybackRate: number,
+    options?: {
+      /** 是否允许缩短时长（向左收缩结束时间） */
+      allowShrink?: boolean
+      /** 是否允许扩展时长（可能导致碰撞） */
+      allowExpand?: boolean
+      /** 是否自动处理碰撞（推挤后续 clips） */
+      handleCollision?: boolean
+      /** 是否保持 clip 开始位置不变，默认为 true */
+      keepStartTime?: boolean
+    }
+  ): {
+    success: boolean
+    message?: string
+    removedTransitions?: string[]
+    adjustedClips?: Array<{ id: string; startTime: number; endTime: number }>
+  } {
+    const {
+      allowShrink = true,
+      allowExpand = true,
+      handleCollision = true,
+      keepStartTime = true
+    } = options || {}
+
+    // 验证倍速范围
+    if (newPlaybackRate < 0.25 || newPlaybackRate > 4) {
+      return { success: false, message: '播放倍速必须在 0.25 到 4 之间' }
+    }
+
+    // 查找 clip 和所在轨道
+    let foundClip: Clip | null = null
+    let foundTrack: Track | null = null
+
+    for (const track of tracks.value) {
+      const clip = track.clips.find((c) => c.id === clipId)
+      if (clip) {
+        foundClip = clip
+        foundTrack = track
+        break
+      }
+    }
+
+    if (!foundClip || !foundTrack) {
+      return { success: false, message: '未找到指定的 Clip' }
+    }
+
+    // 只有媒体类型（video/audio）的 clip 才能调整倍速
+    if (foundClip.type !== 'video' && foundClip.type !== 'audio') {
+      return { success: false, message: '只有视频或音频类型的 Clip 可以调整倍速' }
+    }
+
+    const mediaClip = foundClip as MediaClip
+    const currentPlaybackRate = mediaClip.playbackRate || 1
+
+    // 如果倍速相同，直接返回
+    if (Math.abs(currentPlaybackRate - newPlaybackRate) < 0.001) {
+      return { success: true }
+    }
+
+    // 计算可用的媒体时长（考虑裁剪）
+    const trimmedDuration = mediaClip.trimEnd - mediaClip.trimStart
+
+    // 计算当前轨道时长
+    const currentTrackDuration = mediaClip.endTime - mediaClip.startTime
+
+    // 计算新的轨道时长
+    // 公式：新时长 = 裁剪后的媒体时长 / 新倍速
+    const newTrackDuration = normalizeTime(trimmedDuration / newPlaybackRate)
+
+    // 判断是扩展还是收缩
+    const isExpanding = newTrackDuration > currentTrackDuration
+    const isShrinking = newTrackDuration < currentTrackDuration
+
+    // 检查是否允许扩展/收缩
+    if (isExpanding && !allowExpand) {
+      return { success: false, message: '不允许扩展时长' }
+    }
+    if (isShrinking && !allowShrink) {
+      return { success: false, message: '不允许收缩时长' }
+    }
+
+    // 计算新的时间范围
+    let newStartTime: number
+    let newEndTime: number
+
+    if (keepStartTime) {
+      newStartTime = mediaClip.startTime
+      newEndTime = normalizeTime(mediaClip.startTime + newTrackDuration)
+    } else {
+      // 保持结束位置不变
+      newEndTime = mediaClip.endTime
+      newStartTime = normalizeTime(mediaClip.endTime - newTrackDuration)
+
+      // 确保不会小于 0
+      if (newStartTime < 0) {
+        newStartTime = 0
+        newEndTime = normalizeTime(newTrackDuration)
+      }
+    }
+
+    const removedTransitions: string[] = []
+    const adjustedClips: Array<{ id: string; startTime: number; endTime: number }> = []
+
+    // 1. 检测并处理转场
+    // 查找当前 clip 两端的转场
+    const transitions = foundTrack.clips.filter((c) => {
+      if (c.type !== 'transition') return false
+      const trans = c as TransitionClip
+      const centerTime = (trans.startTime + trans.endTime) / 2
+      // 检查转场是否与当前 clip 的边界相关联
+      const isAtStart = Math.abs(centerTime - mediaClip.startTime) < trans.transitionDuration
+      const isAtEnd = Math.abs(centerTime - mediaClip.endTime) < trans.transitionDuration
+      return isAtStart || isAtEnd
+    })
+
+    // 2. 检测碰撞
+    // 获取轨道上的其他非转场 clips
+    const otherClips = foundTrack.clips.filter((c) =>
+      c.id !== clipId && c.type !== 'transition'
+    ).sort((a, b) => a.startTime - b.startTime)
+
+    // 检测新时间范围是否与其他 clips 碰撞
+    const collidingClips = otherClips.filter((c) =>
+      newStartTime < c.endTime && newEndTime > c.startTime
+    )
+
+    // 3. 处理碰撞
+    if (collidingClips.length > 0) {
+      if (!handleCollision) {
+        return { success: false, message: '会与其他 Clip 产生碰撞' }
+      }
+
+      // 找到需要推挤的 clips（在当前 clip 右侧的）
+      const rightSideClips = collidingClips.filter((c) => c.startTime >= mediaClip.startTime)
+
+      // 计算需要推挤的距离
+      const pushDistance = newEndTime - Math.min(...rightSideClips.map((c) => c.startTime))
+
+      if (pushDistance > 0) {
+        // 推挤右侧的所有 clips
+        const clipsToAdjust = otherClips.filter((c) => c.startTime >= mediaClip.endTime)
+
+        for (const clip of clipsToAdjust) {
+          const adjustedStartTime = normalizeTime(clip.startTime + pushDistance)
+          const adjustedEndTime = normalizeTime(clip.endTime + pushDistance)
+
+          updateClip(clip.id, {
+            startTime: adjustedStartTime,
+            endTime: adjustedEndTime
+          })
+
+          adjustedClips.push({
+            id: clip.id,
+            startTime: adjustedStartTime,
+            endTime: adjustedEndTime
+          })
+        }
+      }
+    }
+
+    // 4. 更新当前 clip 的倍速和时间
+    updateClip(clipId, {
+      playbackRate: newPlaybackRate,
+      startTime: newStartTime,
+      endTime: newEndTime
+    } as Partial<MediaClip>)
+
+    // 5. 处理转场有效性
+    // 检查每个转场是否仍然有效（两端的 clips 是否仍然相接）
+    for (const trans of transitions) {
+      const transClip = trans as TransitionClip
+      const centerTime = (transClip.startTime + transClip.endTime) / 2
+
+      // 查找转场前后的 clips
+      const updatedClips = foundTrack.clips.filter((c) => c.type !== 'transition')
+
+      // 获取更新后的当前 clip 信息
+      const currentClipUpdated = { ...mediaClip, startTime: newStartTime, endTime: newEndTime }
+
+      // 判断这个转场是在当前 clip 的开始还是结束位置
+      const wasAtStart = Math.abs(centerTime - mediaClip.startTime) < transClip.transitionDuration
+      const wasAtEnd = Math.abs(centerTime - mediaClip.endTime) < transClip.transitionDuration
+
+      let stillValid = false
+
+      if (wasAtEnd) {
+        // 转场在当前 clip 的结束位置
+        // 查找新的结束位置是否有相邻的 clip
+        const adjacentClip = updatedClips.find((c) =>
+          c.id !== clipId && Math.abs(c.startTime - newEndTime) < 0.01
+        )
+        stillValid = !!adjacentClip
+
+        // 如果仍然有效，更新转场的位置
+        if (stillValid && adjacentClip) {
+          const newCenterTime = (newEndTime + adjacentClip.startTime) / 2
+          const halfDuration = transClip.transitionDuration / 2
+          updateClip(trans.id, {
+            startTime: normalizeTime(newCenterTime - halfDuration),
+            endTime: normalizeTime(newCenterTime + halfDuration)
+          })
+        }
+      } else if (wasAtStart && !keepStartTime) {
+        // 转场在当前 clip 的开始位置（只有当开始位置改变时才需要检查）
+        const adjacentClip = updatedClips.find((c) =>
+          c.id !== clipId && Math.abs(c.endTime - newStartTime) < 0.01
+        )
+        stillValid = !!adjacentClip
+
+        if (stillValid && adjacentClip) {
+          const newCenterTime = (adjacentClip.endTime + newStartTime) / 2
+          const halfDuration = transClip.transitionDuration / 2
+          updateClip(trans.id, {
+            startTime: normalizeTime(newCenterTime - halfDuration),
+            endTime: normalizeTime(newCenterTime + halfDuration)
+          })
+        }
+      } else if (wasAtStart && keepStartTime) {
+        // 开始位置没变，转场仍然有效
+        stillValid = true
+      }
+
+      // 如果转场不再有效，删除它
+      if (!stillValid) {
+        removeClip(trans.id)
+        removedTransitions.push(trans.id)
+      }
+    }
+
+    return {
+      success: true,
+      removedTransitions: removedTransitions.length > 0 ? removedTransitions : undefined,
+      adjustedClips: adjustedClips.length > 0 ? adjustedClips : undefined
+    }
+  }
+
+  /**
+   * 获取媒体 Clip 在指定倍速下的预计时长
+   * 用于 UI 预览
+   */
+  function getClipDurationAtRate(clipId: string, playbackRate: number): number | null {
+    const clip = getClip(clipId)
+    if (!clip || (clip.type !== 'video' && clip.type !== 'audio')) {
+      return null
+    }
+
+    const mediaClip = clip as MediaClip
+    const trimmedDuration = mediaClip.trimEnd - mediaClip.trimStart
+    return normalizeTime(trimmedDuration / playbackRate)
+  }
+
+  /**
+   * 检查调整倍速后是否会产生碰撞
+   */
+  function checkPlaybackRateCollision(
+    clipId: string,
+    newPlaybackRate: number,
+    keepStartTime = true
+  ): {
+    willCollide: boolean
+    collidingClipIds?: string[]
+    newDuration?: number
+  } {
+    const clip = getClip(clipId)
+    if (!clip || (clip.type !== 'video' && clip.type !== 'audio')) {
+      return { willCollide: false }
+    }
+
+    const mediaClip = clip as MediaClip
+    const trimmedDuration = mediaClip.trimEnd - mediaClip.trimStart
+    const newTrackDuration = normalizeTime(trimmedDuration / newPlaybackRate)
+
+    let newStartTime: number
+    let newEndTime: number
+
+    if (keepStartTime) {
+      newStartTime = mediaClip.startTime
+      newEndTime = normalizeTime(mediaClip.startTime + newTrackDuration)
+    } else {
+      newEndTime = mediaClip.endTime
+      newStartTime = normalizeTime(Math.max(0, mediaClip.endTime - newTrackDuration))
+    }
+
+    // 查找轨道
+    let foundTrack: Track | null = null
+    for (const track of tracks.value) {
+      if (track.clips.some((c) => c.id === clipId)) {
+        foundTrack = track
+        break
+      }
+    }
+
+    if (!foundTrack) {
+      return { willCollide: false, newDuration: newTrackDuration }
+    }
+
+    // 检测碰撞
+    const collidingClips = foundTrack.clips.filter((c) =>
+      c.id !== clipId &&
+      c.type !== 'transition' &&
+      newStartTime < c.endTime &&
+      newEndTime > c.startTime
+    )
+
+    return {
+      willCollide: collidingClips.length > 0,
+      collidingClipIds: collidingClips.map((c) => c.id),
+      newDuration: newTrackDuration
+    }
+  }
+
+  /**
+   * 计算媒体 Clip 在轨道上应该显示的时长
+   * 用于在创建 clip 之前计算正确的 endTime
+   * 
+   * @param trimStart - 裁剪起点（秒）
+   * @param trimEnd - 裁剪终点（秒）
+   * @param playbackRate - 播放倍速，默认为 1
+   * @returns 在轨道上显示的时长（秒）
+   */
+  function calculateTrackDuration(
+    trimStart: number,
+    trimEnd: number,
+    playbackRate: number = 1
+  ): number {
+    const trimmedDuration = trimEnd - trimStart
+    return normalizeTime(trimmedDuration / playbackRate)
+  }
+
   return {
     // 状态
     tracks,
@@ -614,6 +1004,9 @@ export const useTracksStore = defineStore('tracks', () => {
     removeTrack,
     updateTrack,
     getTrackCountByType,
+    setTracks,
+    normalizeTracks,
+    normalizeClipDuration,
     addClip,
     removeClip,
     removeClips,
@@ -634,7 +1027,12 @@ export const useTracksStore = defineStore('tracks', () => {
     hasClipboardContent,
     getClipboardContent,
     clearClipboard,
-    splitClip
+    splitClip,
+    // 倍速控制
+    setClipPlaybackRate,
+    getClipDurationAtRate,
+    checkPlaybackRateCollision,
+    calculateTrackDuration
   }
 })
 

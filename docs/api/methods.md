@@ -54,6 +54,34 @@ videoTrackRef.value.moveClip(clipId, targetTrackId, newStartTime)
 videoTrackRef.value.getClipById(clipId)
 ```
 
+### 倍速控制
+
+调整媒体 Clip（视频/音频）的播放倍速。详见 [播放倍速指南](/guide/playback-rate)。
+
+```typescript
+// 设置播放倍速（会自动调整轨道时长）
+const result = videoTrackRef.value.setClipPlaybackRate(clipId, 1.5, {
+  allowShrink: true,      // 允许缩短时长
+  allowExpand: true,      // 允许扩展时长  
+  handleCollision: true,  // 自动处理碰撞
+  keepStartTime: true     // 保持开始位置不变
+})
+
+// 返回值
+// { success: boolean, message?: string, removedTransitions?: string[], adjustedClips?: [...] }
+
+// 预览倍速调整后的时长
+const duration = videoTrackRef.value.getClipDurationAtRate(clipId, 2)
+
+// 检测倍速调整是否会产生碰撞
+const collision = videoTrackRef.value.checkPlaybackRateCollision(clipId, 2)
+// { willCollide: boolean, collidingClipIds?: string[], newDuration?: number }
+```
+
+::: warning 注意
+直接使用 `updateClip({ playbackRate: x })` 不会自动更新轨道时长，请使用 `setClipPlaybackRate` 方法。
+:::
+
 ### updateClip 深度合并
 
 `updateClip` 方法支持深度合并嵌套对象，无需手动展开原有属性：

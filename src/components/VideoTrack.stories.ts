@@ -1023,3 +1023,245 @@ export const NewClipProperties: Story = {
         },
     },
 }
+
+/**
+ * 播放倍速示例
+ * 展示如何处理带有不同播放倍速的媒体 Clip
+ */
+export const PlaybackRate: Story = {
+    render: (args) => ({
+        components: { VideoTrack },
+        setup() {
+            const pinia = createPinia()
+            setActivePinia(pinia)
+            const videoTrackRef = ref()
+            const selectedClipInfo = ref<string>('')
+            const currentRate = ref(1)
+
+            // 创建带有不同倍速的 clips
+            function createPlaybackRateTrack(): Track {
+                const trackId = generateId('track-')
+                const clips: MediaClip[] = [
+                    {
+                        id: generateId('clip-'),
+                        trackId,
+                        type: 'video',
+                        startTime: 0,
+                        endTime: 10,  // 原始10秒，1x倍速
+                        selected: false,
+                        sourceUrl: '',
+                        originalDuration: 30,
+                        trimStart: 0,
+                        trimEnd: 10,
+                        playbackRate: 1,
+                        thumbnails: [],
+                    },
+                    {
+                        id: generateId('clip-'),
+                        trackId,
+                        type: 'video',
+                        startTime: 12,
+                        endTime: 22,  // 将被自动修正为 12 + (10/2) = 17
+                        selected: false,
+                        sourceUrl: '',
+                        originalDuration: 30,
+                        trimStart: 5,
+                        trimEnd: 15,
+                        playbackRate: 2,  // 2x 倍速
+                        thumbnails: [],
+                    },
+                    {
+                        id: generateId('clip-'),
+                        trackId,
+                        type: 'video',
+                        startTime: 20,
+                        endTime: 30,  // 将被自动修正为 20 + (8/0.5) = 36
+                        selected: false,
+                        sourceUrl: '',
+                        originalDuration: 20,
+                        trimStart: 2,
+                        trimEnd: 10,
+                        playbackRate: 0.5,  // 0.5x 慢放
+                        thumbnails: [],
+                    },
+                ]
+
+                return {
+                    id: trackId,
+                    type: 'video',
+                    name: '倍速演示轨道',
+                    visible: true,
+                    locked: false,
+                    clips,
+                    order: 0,
+                    isMain: true,
+                }
+            }
+
+            onMounted(() => {
+                if (videoTrackRef.value) {
+                    videoTrackRef.value.addTrack(createPlaybackRateTrack())
+                }
+            })
+
+            // 获取选中的 clip 信息
+            const updateSelectedInfo = () => {
+                if (!videoTrackRef.value) return
+                const selected = videoTrackRef.value.getSelectedClips()
+                if (selected.length > 0) {
+                    const clip = selected[0]
+                    const duration = clip.endTime - clip.startTime
+                    const mediaDuration = clip.trimEnd - clip.trimStart
+                    selectedClipInfo.value = `
+                        ID: ${clip.id.slice(-8)}
+                        倍速: ${clip.playbackRate}x
+                        轨道时长: ${duration.toFixed(2)}s
+                        媒体时长: ${mediaDuration}s
+                        计算公式: ${mediaDuration} / ${clip.playbackRate} = ${(mediaDuration / clip.playbackRate).toFixed(2)}s
+                    `
+                    currentRate.value = clip.playbackRate
+                } else {
+                    selectedClipInfo.value = '请点击选择一个 Clip'
+                }
+            }
+
+            // 调整倍速
+            const setPlaybackRate = (rate: number) => {
+                if (!videoTrackRef.value) return
+                const selected = videoTrackRef.value.getSelectedClips()
+                if (selected.length === 0) {
+                    alert('请先选择一个 Clip')
+                    return
+                }
+
+                const result = videoTrackRef.value.setClipPlaybackRate(selected[0].id, rate, {
+                    allowShrink: true,
+                    allowExpand: true,
+                    handleCollision: true,
+                    keepStartTime: true,
+                })
+
+                if (result.success) {
+                    currentRate.value = rate
+                    updateSelectedInfo()
+                } else {
+                    alert(`调整失败: ${result.message}`)
+                }
+            }
+
+            // 预览时长
+            const previewDuration = (rate: number) => {
+                if (!videoTrackRef.value) return null
+                const selected = videoTrackRef.value.getSelectedClips()
+                if (selected.length === 0) return null
+                return videoTrackRef.value.getClipDurationAtRate(selected[0].id, rate)
+            }
+
+            return {
+                args,
+                videoTrackRef,
+                selectedClipInfo,
+                currentRate,
+                updateSelectedInfo,
+                setPlaybackRate,
+                previewDuration,
+            }
+        },
+        template: `
+      <div style="display: flex; flex-direction: column; height: 500px; background: #1a1a2e;">
+        <div style="padding: 12px; background: #0d1117; border-bottom: 1px solid #30363d;">
+          <div style="display: flex; gap: 16px; align-items: flex-start;">
+            <div style="flex: 1;">
+              <div style="margin-bottom: 8px; color: #8b949e; font-size: 12px;">
+                点击选择 Clip，然后调整倍速：
+              </div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button 
+                  v-for="rate in [0.5, 0.75, 1, 1.5, 2, 3, 4]"
+                  :key="rate"
+                  @click="setPlaybackRate(rate)"
+                  :style="{
+                    padding: '6px 12px',
+                    background: currentRate === rate ? '#238636' : '#21262d',
+                    color: 'white',
+                    border: '1px solid #30363d',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                  }"
+                >
+                  {{ rate }}x
+                </button>
+              </div>
+            </div>
+            <div style="background: #161b22; padding: 8px 12px; border-radius: 4px; min-width: 250px;">
+              <div style="color: #8b949e; font-size: 11px; margin-bottom: 4px;">选中 Clip 信息：</div>
+              <pre style="color: #c9d1d9; font-size: 11px; margin: 0; white-space: pre-line;">{{ selectedClipInfo || '请点击选择一个 Clip' }}</pre>
+            </div>
+          </div>
+        </div>
+        <div style="flex: 1; min-height: 0;">
+          <VideoTrack
+            ref="videoTrackRef"
+            v-bind="args"
+            style="height: 100%;"
+            @clipSelect="updateSelectedInfo"
+          />
+        </div>
+        <div style="padding: 8px 12px; background: #0d1117; border-top: 1px solid #30363d; color: #8b949e; font-size: 11px;">
+          <strong>说明：</strong>
+          轨道中有 3 个 Clip，分别设置了 1x、2x、0.5x 倍速。
+          组件会自动根据 playbackRate 修正轨道时长（endTime）。
+          公式：轨道时长 = (trimEnd - trimStart) / playbackRate
+        </div>
+      </div>
+    `,
+    }),
+    args: {
+        operationButtons: ['reset', 'undo', 'redo', 'split', 'delete'],
+        scaleConfigButtons: ['snap'],
+        showToolsBar: true,
+        enableMainTrackMode: true,
+        enableCrossTrackDrag: false,
+        enableSnap: true,
+        locale: 'zh-CN',
+    },
+    parameters: {
+        docs: {
+            description: {
+                story: `
+## 播放倍速演示
+
+展示如何处理媒体 Clip 的播放倍速（playbackRate）。
+
+### 核心概念
+
+- **playbackRate > 1**：快速播放，轨道时长 < 媒体时长
+- **playbackRate < 1**：慢速播放，轨道时长 > 媒体时长
+- **计算公式**：\`轨道时长 = (trimEnd - trimStart) / playbackRate\`
+
+### 自动时长修正
+
+通过 \`addTrack\`、\`addClip\`、\`importData\` 等方法添加数据时，组件会自动根据 playbackRate 修正 endTime。
+
+### 动态调整倍速
+
+使用 \`setClipPlaybackRate\` 方法调整已存在 clip 的倍速：
+
+\`\`\`typescript
+const result = videoTrackRef.value.setClipPlaybackRate(clipId, 1.5, {
+  allowShrink: true,      // 允许缩短时长
+  allowExpand: true,      // 允许扩展时长
+  handleCollision: true,  // 自动处理碰撞
+  keepStartTime: true     // 保持开始位置不变
+})
+\`\`\`
+
+### 注意事项
+
+⚠️ 直接使用 \`updateClip({ playbackRate: x })\` **不会**自动更新轨道时长，请使用 \`setClipPlaybackRate\` 方法。
+                `,
+            },
+        },
+    },
+}

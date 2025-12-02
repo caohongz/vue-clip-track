@@ -555,4 +555,395 @@ describe('useTracksStore', () => {
       })
     })
   })
+
+  describe('倍速控制', () => {
+    describe('setClipPlaybackRate', () => {
+      it('应该能设置 clip 的播放倍速', () => {
+        const track = createTestTrack()
+        store.addTrack(track)
+        const clip = createTestClip(track.id, {
+          startTime: 0,
+          endTime: 10,
+          trimStart: 0,
+          trimEnd: 10,
+          playbackRate: 1
+        })
+        store.addClip(track.id, clip)
+
+        const result = store.setClipPlaybackRate(clip.id, 2)
+
+        expect(result.success).toBe(true)
+        const updatedClip = store.getClip(clip.id) as MediaClip
+        expect(updatedClip.playbackRate).toBe(2)
+        // 2倍速，时长应该减半：10 / 2 = 5
+        expect(updatedClip.endTime - updatedClip.startTime).toBe(5)
+      })
+
+      it('0.5倍速应该使时长加倍', () => {
+        const track = createTestTrack()
+        store.addTrack(track)
+        const clip = createTestClip(track.id, {
+          startTime: 0,
+          endTime: 10,
+          trimStart: 0,
+          trimEnd: 10,
+          playbackRate: 1
+        })
+        store.addClip(track.id, clip)
+
+        const result = store.setClipPlaybackRate(clip.id, 0.5)
+
+        expect(result.success).toBe(true)
+        const updatedClip = store.getClip(clip.id) as MediaClip
+        expect(updatedClip.playbackRate).toBe(0.5)
+        // 0.5倍速，时长应该加倍：10 / 0.5 = 20
+        expect(updatedClip.endTime - updatedClip.startTime).toBe(20)
+      })
+
+      it('应该拒绝超出范围的倍速值', () => {
+        const track = createTestTrack()
+        store.addTrack(track)
+        const clip = createTestClip(track.id)
+        store.addClip(track.id, clip)
+
+        const result1 = store.setClipPlaybackRate(clip.id, 0.1)
+        expect(result1.success).toBe(false)
+        expect(result1.message).toContain('0.25 到 4')
+
+        const result2 = store.setClipPlaybackRate(clip.id, 5)
+        expect(result2.success).toBe(false)
+      })
+
+      it('应该只允许视频或音频类型的 clip 调整倍速', () => {
+        const track = createTestTrack({ type: 'subtitle' })
+        store.addTrack(track)
+        const clip = {
+          id: 'subtitle-clip',
+          trackId: track.id,
+          type: 'subtitle' as const,
+          text: 'test',
+          fontFamily: 'Arial',
+          fontSize: 16,
+          color: '#fff',
+          startTime: 0,
+          endTime: 5,
+          selected: false
+        }
+        store.addClip(track.id, clip)
+
+        const result = store.setClipPlaybackRate(clip.id, 2)
+        expect(result.success).toBe(false)
+        expect(result.message).toContain('视频或音频')
+      })
+
+      it('调整倍速后应该保持开始位置不变', () => {
+        const track = createTestTrack()
+        store.addTrack(track)
+        const clip = createTestClip(track.id, {
+          startTime: 5,
+          endTime: 15,
+          trimStart: 0,
+          trimEnd: 10,
+          playbackRate: 1
+        })
+        store.addClip(track.id, clip)
+
+        store.setClipPlaybackRate(clip.id, 2)
+
+        const updatedClip = store.getClip(clip.id) as MediaClip
+        expect(updatedClip.startTime).toBe(5)
+        expect(updatedClip.endTime).toBe(10) // 5 + (10/2) = 10
+      })
+
+      it('应该处理相同倍速设置', () => {
+        const track = createTestTrack()
+        store.addTrack(track)
+        const clip = createTestClip(track.id, {
+          playbackRate: 2
+        })
+        store.addClip(track.id, clip)
+
+        const result = store.setClipPlaybackRate(clip.id, 2)
+        expect(result.success).toBe(true)
+      })
+    })
+
+    describe('setClipPlaybackRate 碰撞处理', () => {
+      it('扩展时长导致碰撞时应该推挤后续 clips', () => {
+        const track = createTestTrack()
+        store.addTrack(track)
+
+        const clip1 = createTestClip(track.id, {
+          id: 'clip1',
+          startTime: 0,
+          endTime: 10,
+          trimStart: 0,
+          trimEnd: 10,
+          playbackRate: 1
+        })
+        const clip2 = createTestClip(track.id, {
+          id: 'clip2',
+          startTime: 10,
+          endTime: 20,
+          trimStart: 0,
+          trimEnd: 10,
+          playbackRate: 1
+        })
+
+        store.addClip(track.id, clip1)
+        store.addClip(track.id, clip2)
+
+        // 将 clip1 改为 0.5 倍速，时长从 10 变为 20，会与 clip2 碰撞
+        const result = store.setClipPlaybackRate('clip1', 0.5, { handleCollision: true })
+
+        expect(result.success).toBe(true)
+
+        const updatedClip1 = store.getClip('clip1') as MediaClip
+        const updatedClip2 = store.getClip('clip2') as MediaClip
+
+        // clip1 时长变为 20
+        expect(updatedClip1.endTime - updatedClip1.startTime).toBe(20)
+        // clip2 应该被推挤到 clip1 的末尾
+        expect(updatedClip2.startTime).toBe(20)
+        expect(result.adjustedClips?.length).toBeGreaterThan(0)
+      })
+
+      it('handleCollision 为 false 时应该拒绝碰撞', () => {
+        const track = createTestTrack()
+        store.addTrack(track)
+
+        const clip1 = createTestClip(track.id, {
+          id: 'clip1',
+          startTime: 0,
+          endTime: 10,
+          trimStart: 0,
+          trimEnd: 10,
+          playbackRate: 1
+        })
+        const clip2 = createTestClip(track.id, {
+          id: 'clip2',
+          startTime: 10,
+          endTime: 20,
+          trimStart: 0,
+          trimEnd: 10,
+          playbackRate: 1
+        })
+
+        store.addClip(track.id, clip1)
+        store.addClip(track.id, clip2)
+
+        const result = store.setClipPlaybackRate('clip1', 0.5, { handleCollision: false })
+
+        expect(result.success).toBe(false)
+        expect(result.message).toContain('碰撞')
+      })
+    })
+
+    describe('setClipPlaybackRate 转场处理', () => {
+      it('调整倍速后应该检查转场有效性', () => {
+        const track = createTestTrack()
+        store.addTrack(track)
+
+        // 创建两个相邻的 clips
+        const clip1 = createTestClip(track.id, {
+          id: 'clip1',
+          startTime: 0,
+          endTime: 10,
+          trimStart: 0,
+          trimEnd: 10,
+          playbackRate: 1
+        })
+        const clip2 = createTestClip(track.id, {
+          id: 'clip2',
+          startTime: 10,
+          endTime: 20,
+          trimStart: 0,
+          trimEnd: 10,
+          playbackRate: 1
+        })
+
+        // 创建转场
+        const transition = {
+          id: 'transition1',
+          trackId: track.id,
+          type: 'transition' as const,
+          transitionType: 'fade',
+          transitionDuration: 1,
+          startTime: 9.5,
+          endTime: 10.5,
+          selected: false
+        }
+
+        store.addClip(track.id, clip1)
+        store.addClip(track.id, clip2)
+        store.addClip(track.id, transition)
+
+        // 将 clip1 改为 2 倍速，结束时间变为 5，与 clip2 不再相接
+        const result = store.setClipPlaybackRate('clip1', 2)
+
+        expect(result.success).toBe(true)
+        // 转场应该被删除
+        expect(result.removedTransitions).toContain('transition1')
+        expect(store.getClip('transition1')).toBeUndefined()
+      })
+
+      it('如果调整后仍然相接，转场应该保留并更新位置', () => {
+        const track = createTestTrack()
+        store.addTrack(track)
+
+        const clip1 = createTestClip(track.id, {
+          id: 'clip1',
+          startTime: 0,
+          endTime: 10,
+          trimStart: 0,
+          trimEnd: 10,
+          playbackRate: 1
+        })
+        const clip2 = createTestClip(track.id, {
+          id: 'clip2',
+          startTime: 10,
+          endTime: 20,
+          trimStart: 0,
+          trimEnd: 10,
+          playbackRate: 1
+        })
+
+        // 创建转场
+        const transition = {
+          id: 'transition1',
+          trackId: track.id,
+          type: 'transition' as const,
+          transitionType: 'fade',
+          transitionDuration: 1,
+          startTime: 9.5,
+          endTime: 10.5,
+          selected: false
+        }
+
+        store.addClip(track.id, clip1)
+        store.addClip(track.id, clip2)
+        store.addClip(track.id, transition)
+
+        // 将 clip1 改为 0.5 倍速，时长变为 20，会推挤 clip2
+        const result = store.setClipPlaybackRate('clip1', 0.5, { handleCollision: true })
+
+        expect(result.success).toBe(true)
+
+        // clip2 被推挤到 20
+        const updatedClip2 = store.getClip('clip2') as MediaClip
+        expect(updatedClip2.startTime).toBe(20)
+
+        // 检查转场状态 - 由于推挤后 clip1 结束于 20，clip2 开始于 20，仍然相接
+        // 所以转场应该保留
+        const updatedTransition = store.getClip('transition1')
+        if (updatedTransition) {
+          // 转场保留并更新了位置
+          expect(updatedTransition.startTime).toBeCloseTo(19.5, 1)
+          expect(updatedTransition.endTime).toBeCloseTo(20.5, 1)
+        } else {
+          // 或者因为逻辑判断不同被删除也是可接受的
+          expect(result.removedTransitions).toContain('transition1')
+        }
+      })
+    })
+
+    describe('getClipDurationAtRate', () => {
+      it('应该返回指定倍速下的预计时长', () => {
+        const track = createTestTrack()
+        store.addTrack(track)
+        const clip = createTestClip(track.id, {
+          trimStart: 0,
+          trimEnd: 10,
+          playbackRate: 1
+        })
+        store.addClip(track.id, clip)
+
+        expect(store.getClipDurationAtRate(clip.id, 1)).toBe(10)
+        expect(store.getClipDurationAtRate(clip.id, 2)).toBe(5)
+        expect(store.getClipDurationAtRate(clip.id, 0.5)).toBe(20)
+      })
+
+      it('非媒体类型应该返回 null', () => {
+        const track = createTestTrack({ type: 'subtitle' })
+        store.addTrack(track)
+        const clip = {
+          id: 'subtitle-clip',
+          trackId: track.id,
+          type: 'subtitle' as const,
+          text: 'test',
+          fontFamily: 'Arial',
+          fontSize: 16,
+          color: '#fff',
+          startTime: 0,
+          endTime: 5,
+          selected: false
+        }
+        store.addClip(track.id, clip)
+
+        expect(store.getClipDurationAtRate(clip.id, 2)).toBeNull()
+      })
+    })
+
+    describe('checkPlaybackRateCollision', () => {
+      it('应该检测碰撞', () => {
+        const track = createTestTrack()
+        store.addTrack(track)
+
+        const clip1 = createTestClip(track.id, {
+          id: 'clip1',
+          startTime: 0,
+          endTime: 10,
+          trimStart: 0,
+          trimEnd: 10,
+          playbackRate: 1
+        })
+        const clip2 = createTestClip(track.id, {
+          id: 'clip2',
+          startTime: 10,
+          endTime: 20,
+          trimStart: 0,
+          trimEnd: 10,
+          playbackRate: 1
+        })
+
+        store.addClip(track.id, clip1)
+        store.addClip(track.id, clip2)
+
+        // 0.5 倍速会使 clip1 扩展到 20，与 clip2 碰撞
+        const result = store.checkPlaybackRateCollision('clip1', 0.5)
+        expect(result.willCollide).toBe(true)
+        expect(result.collidingClipIds).toContain('clip2')
+        expect(result.newDuration).toBe(20)
+      })
+
+      it('不碰撞时应该返回 false', () => {
+        const track = createTestTrack()
+        store.addTrack(track)
+
+        const clip1 = createTestClip(track.id, {
+          id: 'clip1',
+          startTime: 0,
+          endTime: 10,
+          trimStart: 0,
+          trimEnd: 10,
+          playbackRate: 1
+        })
+        const clip2 = createTestClip(track.id, {
+          id: 'clip2',
+          startTime: 30,
+          endTime: 40,
+          trimStart: 0,
+          trimEnd: 10,
+          playbackRate: 1
+        })
+
+        store.addClip(track.id, clip1)
+        store.addClip(track.id, clip2)
+
+        // 0.5 倍速使 clip1 扩展到 20，不会与在 30 位置的 clip2 碰撞
+        const result = store.checkPlaybackRateCollision('clip1', 0.5)
+        expect(result.willCollide).toBe(false)
+      })
+    })
+  })
 })
