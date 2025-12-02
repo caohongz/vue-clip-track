@@ -104,6 +104,7 @@ const actualPixelsPerSecond = computed(() => scaleStore.actualPixelsPerSecond)
 const contentWidth = computed(() => {
   const maxDuration = Math.max(
     tracksStore.totalDuration,
+    dragStore.previewEndTime, // 拖拽预览的结束时间
     60 // 最少显示 60 秒
   )
   return Math.ceil(maxDuration * actualPixelsPerSecond.value)

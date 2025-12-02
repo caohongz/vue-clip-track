@@ -35,6 +35,7 @@ import { ref, computed, watch } from 'vue'
 import { usePlaybackStore } from '@/stores/playback'
 import { useScaleStore } from '@/stores/scale'
 import { useTracksStore } from '@/stores/tracks'
+import { useDragStore } from '@/stores/drag'
 
 // Props
 interface Props {
@@ -59,6 +60,7 @@ const emit = defineEmits<{
 const playbackStore = usePlaybackStore()
 const scaleStore = useScaleStore()
 const tracksStore = useTracksStore()
+const dragStore = useDragStore()
 
 // Refs
 const rulerRef = ref<HTMLElement>()
@@ -79,6 +81,7 @@ const contentWidth = computed(() => {
   const maxDuration = Math.max(
     tracksStore.totalDuration,
     playbackStore.duration,
+    dragStore.previewEndTime, // 拖拽预览的结束时间
     60 // 最少显示 60 秒
   )
   return Math.ceil(maxDuration * actualPixelsPerSecond.value)

@@ -89,6 +89,14 @@ export const useDragStore = defineStore('drag', () => {
     () => new Set(draggedClips.value.map((c) => c.id))
   );
 
+  // 拖拽预览的结束时间（用于动态扩展轨道宽度）
+  const previewEndTime = computed(() => {
+    if (!isDragging.value || !previewPosition.value.visible) {
+      return 0;
+    }
+    return previewPosition.value.endTime;
+  });
+
   // 设置配置
   function setConfig(config: {
     enableCrossTrackDrag?: boolean;
@@ -158,8 +166,13 @@ export const useDragStore = defineStore('drag', () => {
     }
     // 检测右边缘
     else if (mouseRelativeX > containerRect.width - edgeThreshold) {
-      const maxScrollLeft = scrollbar.scrollWidth - scrollbar.clientWidth;
-      if (scrollbar.scrollLeft < maxScrollLeft) {
+      // 动态计算最大滚动距离，考虑拖拽预览可能超出当前内容宽度的情况
+      // 预留额外的滚动空间，允许继续向右滚动
+      const extraScrollSpace = 500; // 预留 500px 的额外滚动空间
+      const currentMaxScroll = scrollbar.scrollWidth - scrollbar.clientWidth;
+      const dynamicMaxScroll = currentMaxScroll + extraScrollSpace;
+
+      if (scrollbar.scrollLeft < dynamicMaxScroll) {
         const distance = Math.max(
           0,
           mouseRelativeX - (containerRect.width - edgeThreshold)
@@ -862,6 +875,7 @@ export const useDragStore = defineStore('drag', () => {
     draggedClipIds,
     dragOffset,
     previewPosition,
+    previewEndTime,
     currentTargetTrackId,
     dragStartTrackId,
     edgeScrollConfig,

@@ -1,20 +1,29 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { useTracksStore } from './tracks'
 
 export const usePlaybackStore = defineStore('playback', () => {
   // 状态
   const isPlaying = ref(false)
   const currentTime = ref(0) // 当前播放时间（秒）
   const playbackRate = ref(1) // 播放速率
-  const duration = ref(0) // 总时长（秒）
+  const duration = ref(0) // 手动设置的总时长（秒）
 
   // 动画循环状态
   let animationFrameId: number | null = null
   let lastTime = 0
 
+  // 实际使用的时长：优先使用轨道总时长，其次使用手动设置的时长
+  const effectiveDuration = computed(() => {
+    const tracksStore = useTracksStore()
+    const tracksDuration = tracksStore.totalDuration
+    // 使用轨道时长和手动设置时长中的较大值
+    return Math.max(tracksDuration, duration.value)
+  })
+
   // 计算属性：格式化时间 HH:MM:SS:FF
   const formattedCurrentTime = computed(() => formatTime(currentTime.value))
-  const formattedDuration = computed(() => formatTime(duration.value))
+  const formattedDuration = computed(() => formatTime(effectiveDuration.value))
 
   // 方法：格式化时间
   function formatTime(seconds: number, fps = 30): string {
@@ -34,9 +43,10 @@ export const usePlaybackStore = defineStore('playback', () => {
     if (lastTime > 0) {
       const deltaTime = (timestamp - lastTime) / 1000
       const newTime = currentTime.value + deltaTime * playbackRate.value
+      const maxDuration = effectiveDuration.value
 
-      if (newTime >= duration.value) {
-        currentTime.value = duration.value
+      if (newTime >= maxDuration) {
+        currentTime.value = maxDuration
         pause()
         return
       }
@@ -88,8 +98,8 @@ export const usePlaybackStore = defineStore('playback', () => {
 
   // 方法：跳转到指定时间
   function seekTo(time: number) {
-    // 当 duration 为 0 时，允许跳转到任意非负时间（用于重置后或空轨道状态）
-    const maxTime = duration.value > 0 ? duration.value : Infinity
+    // 当 effectiveDuration 为 0 时，允许跳转到任意非负时间（用于重置后或空轨道状态）
+    const maxTime = effectiveDuration.value > 0 ? effectiveDuration.value : Infinity
     currentTime.value = Math.max(0, Math.min(time, maxTime))
   }
 
@@ -105,7 +115,8 @@ export const usePlaybackStore = defineStore('playback', () => {
 
   // 方法：微调时间（用于快捷键）
   function adjustTime(delta: number) {
-    currentTime.value = Math.max(0, Math.min(currentTime.value + delta, duration.value))
+    const maxTime = effectiveDuration.value
+    currentTime.value = Math.max(0, Math.min(currentTime.value + delta, maxTime))
   }
 
   // 方法：重置
@@ -122,6 +133,7 @@ export const usePlaybackStore = defineStore('playback', () => {
     currentTime,
     playbackRate,
     duration,
+    effectiveDuration,
 
     // 计算属性
     formattedCurrentTime,
