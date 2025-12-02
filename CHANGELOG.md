@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2025-12-02
+
+### Added
+
+- 🚀 添加 GitHub Actions 测试和发布工作流配置
+
+### Changed
+
+- 🎨 调整 TrackControl 组件样式，增加右侧间距和背景色
+- 🔧 优化视频剪辑的 trimEnd 逻辑，修正相关测试用例
+- 🧹 移除游标线相关冗余代码
+
+### Fixed
+
+- 📝 优化 README 中的链接格式
+
 ## [0.1.2] - 2025-12-02
 
 ### Added
