@@ -1004,29 +1004,55 @@ describe('useKeyboard', () => {
 
     it('有容器时非激活状态不应处理快捷键', async () => {
       const { useKeyboard } = await import('../../composables/useKeyboard')
-      const { usePlaybackStore } = await import('../../stores/playback')
+      const { useTracksStore } = await import('../../stores/tracks')
 
       const container = document.createElement('div')
       document.body.appendChild(container)
       const containerRef = ref(container)
-      const playbackStore = usePlaybackStore()
+      const tracksStore = useTracksStore()
+
+      // 添加一个轨道和 clip 用于测试删除
+      tracksStore.addTrack({
+        id: 'track-1',
+        type: 'video',
+        name: 'Test Track',
+        visible: true,
+        locked: false,
+        clips: [],
+        order: 0,
+      })
+      tracksStore.addClip('track-1', {
+        id: 'clip-1',
+        trackId: 'track-1',
+        type: 'video',
+        startTime: 0,
+        endTime: 5,
+        selected: true,
+        sourceUrl: 'test.mp4',
+        originalDuration: 10,
+        trimStart: 0,
+        trimEnd: 5,
+        playbackRate: 1,
+      })
+      tracksStore.selectClip('clip-1')
 
       const { result, unmount } = withSetup(() => useKeyboard({ containerRef }), [pinia])
 
       expect(result.isActive.value).toBe(false)
-      expect(playbackStore.isPlaying).toBe(false)
+      expect(tracksStore.tracks[0].clips).toHaveLength(1)
 
       const div = document.createElement('div')
+      // 使用 Delete 键测试，因为空格键是全局生效的
       const event = new KeyboardEvent('keydown', {
-        code: 'Space',
+        code: 'Delete',
         bubbles: true,
       })
       Object.defineProperty(event, 'target', { value: div })
 
       result.handleKeyDown(event)
 
-      // 因为不是激活状态，不应该切换播放
-      expect(playbackStore.isPlaying).toBe(false)
+      // 因为不是激活状态，不应该删除 clip
+      expect(tracksStore.tracks[0].clips).toHaveLength(1)
 
       document.body.removeChild(container)
       unmount()

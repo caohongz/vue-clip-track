@@ -18,20 +18,29 @@ function createTestTrack(overrides: Partial<Track> = {}): Track {
 }
 
 // 创建测试用的 clip
+// 注意：endTime 会被 normalizeClipDuration 根据 trimStart/trimEnd/playbackRate 重新计算
+// endTime = startTime + (trimEnd - trimStart) / playbackRate
 function createTestClip(trackId: string, overrides: Partial<MediaClip> = {}): MediaClip {
+  const startTime = overrides.startTime ?? 0
+  const trimStart = overrides.trimStart ?? 0
+  const trimEnd = overrides.trimEnd ?? 10
+  const playbackRate = overrides.playbackRate ?? 1
+  // 计算正确的 endTime
+  const calculatedEndTime = startTime + (trimEnd - trimStart) / playbackRate
+
   return {
     id: `clip-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     trackId,
     type: 'video',
     name: 'Test Clip',
-    startTime: 0,
-    endTime: 5,
+    startTime,
+    endTime: overrides.endTime ?? calculatedEndTime,
     selected: false,
     sourceUrl: 'test.mp4',
     originalDuration: 10,
-    trimStart: 0,
-    trimEnd: 10,
-    playbackRate: 1,
+    trimStart,
+    trimEnd,
+    playbackRate,
     ...overrides,
   }
 }
@@ -321,7 +330,8 @@ describe('useTracksStore', () => {
 
     describe('hasOverlap', () => {
       it('应该检测重叠', () => {
-        const clip = createTestClip(track.id, { startTime: 0, endTime: 5 })
+        // clip: startTime=0, trimStart=0, trimEnd=5 => endTime = 0 + (5-0)/1 = 5
+        const clip = createTestClip(track.id, { startTime: 0, trimStart: 0, trimEnd: 5 })
         store.addClip(track.id, clip)
 
         expect(store.hasOverlap(track.id, 3, 8)).toBe(true)
@@ -330,7 +340,8 @@ describe('useTracksStore', () => {
       })
 
       it('应该支持排除指定 clip', () => {
-        const clip = createTestClip(track.id, { startTime: 0, endTime: 5 })
+        // clip: startTime=0, trimStart=0, trimEnd=5 => endTime = 5
+        const clip = createTestClip(track.id, { startTime: 0, trimStart: 0, trimEnd: 5 })
         store.addClip(track.id, clip)
 
         expect(store.hasOverlap(track.id, 0, 5, clip.id)).toBe(false)

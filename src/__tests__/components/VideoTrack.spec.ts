@@ -224,7 +224,7 @@ describe('VideoTrack Components', () => {
                 sourceUrl: 'test.mp4',
                 originalDuration: 10,
                 trimStart: 0,
-                trimEnd: 10,
+                trimEnd: 5,  // endTime = startTime + (trimEnd - trimStart) / playbackRate = 0 + 5 = 5
                 playbackRate: 1,
             })
 
@@ -238,7 +238,7 @@ describe('VideoTrack Components', () => {
                 sourceUrl: 'test2.mp4',
                 originalDuration: 15,
                 trimStart: 0,
-                trimEnd: 15,
+                trimEnd: 10,  // endTime = startTime + (trimEnd - trimStart) / playbackRate = 10 + 10 = 20
                 playbackRate: 1,
             })
 
@@ -336,7 +336,7 @@ describe('VideoTrack Components', () => {
                 sourceUrl: 'test.mp4',
                 originalDuration: 20,
                 trimStart: 0,
-                trimEnd: 20,
+                trimEnd: 10,  // endTime = startTime + (trimEnd - trimStart) / playbackRate = 0 + 10 = 10
                 playbackRate: 1,
             }
             tracksStore.addClip('track-1', clip)
@@ -371,6 +371,7 @@ describe('VideoTrack Components', () => {
             })
 
             // 添加带有 trimStart/trimEnd 的 clip
+            // endTime = startTime + (trimEnd - trimStart) / playbackRate = 0 + (15-5)/1 = 10
             tracksStore.addClip('track-2', {
                 id: 'clip-2',
                 trackId: 'track-2',
@@ -381,7 +382,7 @@ describe('VideoTrack Components', () => {
                 sourceUrl: 'test.mp4',
                 originalDuration: 30,
                 trimStart: 5,
-                trimEnd: 25, // trim 区间 5-25，实际内容 20 秒，显示 10 秒
+                trimEnd: 15, // trim 区间 5-15，实际内容 10 秒
                 playbackRate: 1,
             })
 
@@ -389,12 +390,12 @@ describe('VideoTrack Components', () => {
             const result = tracksStore.splitClip('clip-2', 5)
 
             expect(result).not.toBeNull()
-            // 左侧 clip: 0-5秒，对应原始素材的 5-15 秒
+            // 左侧 clip: 0-5秒，对应原始素材的 5-10 秒
             expect((result!.leftClip as MediaClip).trimStart).toBe(5)
-            expect((result!.leftClip as MediaClip).trimEnd).toBe(15)
-            // 右侧 clip: 5-10秒，对应原始素材的 15-25 秒
-            expect((result!.rightClip as MediaClip).trimStart).toBe(15)
-            expect((result!.rightClip as MediaClip).trimEnd).toBe(25)
+            expect((result!.leftClip as MediaClip).trimEnd).toBe(10)
+            // 右侧 clip: 5-10秒，对应原始素材的 10-15 秒
+            expect((result!.rightClip as MediaClip).trimStart).toBe(10)
+            expect((result!.rightClip as MediaClip).trimEnd).toBe(15)
         })
 
         it('不应该在 clip 范围外分割', async () => {
@@ -421,7 +422,7 @@ describe('VideoTrack Components', () => {
                 sourceUrl: 'test.mp4',
                 originalDuration: 20,
                 trimStart: 0,
-                trimEnd: 20,
+                trimEnd: 10,  // endTime = startTime + (trimEnd - trimStart) / playbackRate = 5 + 10 = 15
                 playbackRate: 1,
             })
 
