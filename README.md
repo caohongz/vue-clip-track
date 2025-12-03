@@ -2,6 +2,8 @@
 
 一个基于 Vue 3 的专业级视频轨道编辑组件库。
 
+[English](./README.en.md) | 简体中文
+
 [![npm version](https://img.shields.io/npm/v/vue-clip-track.svg)](https://www.npmjs.com/package/vue-clip-track)
 [![npm downloads](https://img.shields.io/npm/dm/vue-clip-track.svg)](https://www.npmjs.com/package/vue-clip-track)
 
@@ -40,6 +42,8 @@ pnpm add vue-clip-track
 # yarn
 yarn add vue-clip-track
 ```
+
+> ⚠️ **Pinia 依赖**：本组件库依赖 Pinia 进行状态管理，请确保项目中已安装并配置 Pinia。
 
 ## 🚀 快速开始
 
@@ -171,6 +175,43 @@ function handleSelectionChanged(selectedIds: string[], previousIds: string[]) {
   commonItems: ['copy', 'cut', 'delete']
 }
 ```
+
+## 🎯 核心概念
+
+### MediaClip 时长与倍速
+
+对于视频/音频类型的 MediaClip，其在轨道上的实际时长会根据 `playbackRate` 自动计算：
+
+```typescript
+// 实际轨道时长 = (trimEnd - trimStart) / playbackRate
+// 组件会自动修正 endTime
+endTime = startTime + (trimEnd - trimStart) / playbackRate
+```
+
+**重要**：当通过 API 添加或导入 MediaClip 时，组件会自动规范化时长，无需手动计算。
+
+### 时间精度规范
+
+组件内部使用 `normalizeTime()` 函数确保毫秒级精度（3位小数），避免浮点数精度问题：
+
+```typescript
+import { normalizeTime } from 'vue-clip-track'
+
+// 规范化时间值
+const time = normalizeTime(1.23456789) // => 1.235
+```
+
+### 主轨道模式
+
+启用 `enableMainTrackMode` 后，主轨道中的 Clips 会强制连续排列，无间隙：
+
+```typescript
+<VideoTrack :enable-main-track-mode="true" />
+```
+
+- 删除 Clip 后，后续 Clips 自动前移填补空隙
+- 插入 Clip 时，后续 Clips 自动后移腾出空间
+- 主轨道不可删除
 
 ### Events
 
@@ -359,6 +400,20 @@ const clip = videoTrackRef.value.getClipById(clipId)
 
 // 移动 Clip
 videoTrackRef.value.moveClip(clipId, targetTrackId, newStartTime)
+
+// 设置 Clip 播放倍速（仅限 MediaClip）
+videoTrackRef.value.setClipPlaybackRate(clipId, 2.0, {
+  allowShrink: true,   // 允许压缩后续 clip
+  allowExpand: true,   // 允许扩展到空白区域
+  handleCollision: true, // 处理碰撞
+  keepStartTime: true  // 保持开始时间不变
+})
+
+// 获取 Clip 在指定倍速下的预计时长
+const duration = videoTrackRef.value.getClipDurationAtRate(clipId, 1.5)
+
+// 检查调整倍速后是否会产生碰撞
+const hasCollision = videoTrackRef.value.checkPlaybackRateCollision(clipId, 0.5)
 ```
 
 #### 选择操作
@@ -542,6 +597,66 @@ const zhLocale = locales['zh-CN']
 const enLocale = locales['en-US']
 ```
 
+## 📐 Clip 类型体系
+
+组件支持多种 Clip 类型，每种类型有其特定的属性：
+
+### BaseClip（基础属性）
+
+所有 Clip 类型都继承自 BaseClip：
+
+```typescript
+interface BaseClip {
+  id: string           // 唯一标识
+  trackId: string      // 所属轨道 ID
+  name?: string        // 名称
+  startTime: number    // 轨道内开始时间（秒）
+  endTime: number      // 轨道内结束时间（秒）
+  selected: boolean    // 是否选中
+  
+  // 可选的空间属性（用于画布定位）
+  rect?: {
+    x: number
+    y: number
+    w: number
+    h: number
+    angle: number
+  }
+  
+  // 可选的动画配置
+  animations?: AnimationConfig[]
+  
+  visible?: boolean    // 是否可见
+  opacity?: number     // 透明度 (0-1)
+  zIndex?: number      // 层级
+}
+```
+
+### MediaClip（视频/音频）
+
+```typescript
+interface MediaClip extends BaseClip {
+  type: 'video' | 'audio'
+  sourceUrl: string        // 媒体文件 URL
+  originalDuration: number // 原始时长
+  trimStart: number        // 裁剪开始时间
+  trimEnd: number          // 裁剪结束时间
+  playbackRate: number     // 播放倍速
+  volume?: number          // 音量 (0-1)
+  thumbnails?: string[]    // 视频缩略图
+  waveformData?: number[]  // 音频波形数据
+}
+```
+
+### 其他 Clip 类型
+
+- **SubtitleClip**: 字幕（text, fontFamily, fontSize, color 等）
+- **TextClip**: 文本
+- **StickerClip**: 贴纸（sourceUrl）
+- **FilterClip**: 滤镜（filterType, filterValue）
+- **EffectClip**: 特效（effectType, effectDuration）
+- **TransitionClip**: 转场（transitionType, transitionDuration）
+
 ## ⌨️ 键盘快捷键
 
 组件内置以下快捷键支持：
@@ -560,7 +675,27 @@ const enLocale = locales['en-US']
 
 ## 🎨 主题定制
 
-组件使用 CSS 变量进行主题定制，可以通过设置 CSS 变量来自定义样式：
+组件使用 CSS 变量进行主题定制，支持两种方式：
+
+### 方式一：通过 Props 配置
+
+```vue
+<template>
+  <VideoTrack
+    :theme="{
+      primaryHue: 220,
+      primarySaturation: 85,
+      primaryLightness: 55,
+      bgDark: '#0f172a',
+      bgMedium: '#1e293b',
+      textPrimary: 'rgba(255, 255, 255, 0.95)',
+      borderRadius: { sm: 4, md: 8, lg: 12 }
+    }"
+  />
+</template>
+```
+
+### 方式二：通过 CSS 变量
 
 ```css
 :root {
@@ -573,10 +708,46 @@ const enLocale = locales['en-US']
 }
 ```
 
+### ThemeConfig 完整配置
+
+```typescript
+interface ThemeConfig {
+  // 主色调
+  primaryColor?: string
+  primaryHue?: number
+  primarySaturation?: number
+  primaryLightness?: number
+  
+  // 背景色
+  bgDark?: string
+  bgMedium?: string
+  bgLight?: string
+  bgElevated?: string
+  
+  // 文字色
+  textPrimary?: string
+  textSecondary?: string
+  textMuted?: string
+  
+  // 边框色
+  borderColor?: string
+  
+  // 圆角
+  borderRadius?: {
+    sm?: number
+    md?: number
+    lg?: number
+  }
+}
+```
+
 ## 🌍 国际化
 
+组件内置中英文语言包，支持自定义扩展：
+
+### 使用内置语言包
+
 ```vue
-<!-- 使用内置语言包 -->
 <script setup>
 import { locales } from 'vue-clip-track'
 const locale = locales['en-US']
@@ -587,8 +758,7 @@ const locale = locales['en-US']
 </template>
 ```
 
-```vue
-<!-- 自定义语言配置 -->
+### 自定义语言配置
 <template>
   <VideoTrack
     :locale="{
@@ -607,9 +777,126 @@ const locale = locales['en-US']
 </template>
 ```
 
+### LocaleConfig 完整配置
+
+```typescript
+interface LocaleConfig {
+  // 工具栏
+  reset?: string
+  undo?: string
+  redo?: string
+  delete?: string
+  play?: string
+  pause?: string
+  
+  // 吸附
+  snapOn?: string   // 点击后关闭吸附的提示
+  snapOff?: string  // 点击后开启吸附的提示
+  
+  // 右键菜单
+  copy?: string
+  cut?: string
+  paste?: string
+  selectAll?: string
+  splitClip?: string
+  deleteClip?: string
+  deleteTrack?: string
+  lockTrack?: string
+  unlockTrack?: string
+  muteTrack?: string
+  unmuteTrack?: string
+  
+  // 轨道名称
+  mainTrack?: string
+  videoTrack?: string
+  audioTrack?: string
+  subtitleTrack?: string
+  // ... 更多轨道类型
+  
+  // 提示
+  emptyTrackHint?: string
+  noClipSelected?: string
+  confirmDelete?: string
+  confirmDeleteTrack?: string
+}
+```
+
 ## 📄 许可证
 
 [MIT](./LICENSE)
+
+## 🔧 自定义按钮配置
+
+### 操作按钮扩展
+
+除了内置的操作按钮（reset/undo/redo/split/delete），还支持自定义按钮：
+
+```vue
+<template>
+  <VideoTrack
+    :operation-buttons="[
+      'undo',
+      'redo',
+      {
+        type: 'custom',
+        key: 'myButton'
+      },
+      {
+        key: 'export',
+        label: '导出',
+        icon: '📤',
+        onClick: handleExport,
+        title: '导出项目'
+      }
+    ]"
+  >
+    <!-- 自定义按钮插槽 -->
+    <template #custom-operation-myButton>
+      <button @click="doSomething">自定义按钮</button>
+    </template>
+  </VideoTrack>
+</template>
+```
+
+### 右键菜单扩展
+
+```vue
+<template>
+  <VideoTrack
+    :clip-context-menu="{
+      showCommonItems: true,
+      commonItems: ['copy', 'cut', 'delete'],
+      byType: {
+        video: [
+          { key: 'addFilter', label: '添加滤镜', icon: '🎨' },
+          { key: 'extractAudio', label: '提取音频', icon: '🔊' }
+        ],
+        audio: [
+          { key: 'adjustVolume', label: '调整音量', icon: '🔉' }
+        ]
+      },
+      extraItems: [
+        { key: 'divider', label: '', divider: true },
+        { key: 'properties', label: '属性', icon: 'ℹ️' }
+      ]
+    }"
+    @clip-context-menu-select="handleClipMenuSelect"
+  />
+</template>
+
+<script setup>
+function handleClipMenuSelect(key, clip) {
+  switch (key) {
+    case 'addFilter':
+      // 处理添加滤镜
+      break
+    case 'properties':
+      // 显示属性面板
+      break
+  }
+}
+</script>
+```
 
 ## 🛠️ 开发
 
