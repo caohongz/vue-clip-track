@@ -311,8 +311,9 @@ function handleScaleChange() {
   background: var(--color-bg-elevated);
   border-bottom: 1px solid var(--color-border);
   gap: 20px;
+  box-sizing: border-box;
   flex-shrink: 0;
-  height: 50px;
+  min-height: 50px;
   box-shadow: var(--shadow-sm);
   transition: background-color var(--transition-base);
 }
